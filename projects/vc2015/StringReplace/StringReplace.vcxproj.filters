@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="src">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd;cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="src\main">
+      <UniqueIdentifier>{c91bbb4e-5512-4650-8566-ee15cf7fd4d4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\benchmark">
+      <UniqueIdentifier>{9b35e220-ecbb-42f2-9b11-447c0d523590}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\src\benchmark\benchmark.cpp">
+      <Filter>src\benchmark</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>
