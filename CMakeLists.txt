@@ -75,7 +75,7 @@ include_directories(src/test)
 include_directories(src/unittest)
 
 set(SOURCE_FILES
-    src/main/main.cpp
+    src/benchmark/benchmark.cpp
     )
 
 # add_subdirectory(main EXCLUDE_FROM_ALL src/main/asm)
