@@ -17,4 +17,9 @@
       <Filter>src\benchmark</Filter>
     </ClCompile>
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\src\benchmark\win_iconv.h">
+      <Filter>src\benchmark</Filter>
+    </ClInclude>
+  </ItemGroup>
 </Project>
