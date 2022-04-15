@@ -198,7 +198,7 @@ std::size_t read_dict_file(const std::string & dict_file, std::string & content)
             char rdBuf[kReadBufSize];
             ifs.read(rdBuf, kReadBufSize);
             std::streamsize readBytes = ifs.gcount();
-            if (readBytes != 0)
+            if (readBytes > 0)
                 content.append(rdBuf, readBytes);
             else
                 break;
@@ -329,20 +329,25 @@ Find_KV:
     printf("\n");
 }
 
-template <std::size_t kReadChunkSize>
-std::size_t readAInputChunk(std::ifstream & ifs, std::string & input_segment)
+std::size_t readInputChunk(std::ifstream & ifs, std::string & input_chunk,
+                           std::size_t offset, std::size_t needReadBytes)
 {
     static const std::size_t kReadBufSize = 8 * 1024;
 
+    char rdBuf[kReadBufSize];
+    char * input = &input_chunk[offset];
     std::size_t totalReadBytes = 0;
-    while ((totalReadBytes < kReadChunkSize) && !ifs.eof()) {
-        char rdBuf[kReadBufSize];
-        ifs.read(rdBuf, kReadBufSize);
+
+    while ((needReadBytes > 0) && !ifs.eof()) {
+        std::size_t readBufSize = (needReadBytes >= kReadBufSize) ? kReadBufSize : needReadBytes;
+        ifs.read(rdBuf, readBufSize);
         std::streamsize readBytes = ifs.gcount();
-                
-        if (readBytes != 0) {
-            input_segment.append(rdBuf, readBytes);
+
+        if (readBytes > 0) {
+            std::copy_n(&rdBuf[0], readBytes, input);
+            input += readBytes;
             totalReadBytes += readBytes;
+            needReadBytes -= readBytes;
         }
         else break;
     }
@@ -351,9 +356,9 @@ std::size_t readAInputChunk(std::ifstream & ifs, std::string & input_segment)
 }
 
 std::size_t replaceInputChunkText(std::vector<std::pair<std::string, int>> & dict_table,
-                                  std::string & input_chunk, std::size_t input_len,
+                                  std::string & input_chunk, std::size_t input_chunk_size,
                                   std::vector<std::pair<int, int>> & short_keys,
-                                  std::string & output_chunk)
+                                  std::string & output_chunk, std::size_t output_offset)
 {
     const char * chunk_first = input_chunk.c_str();
     const char * substr;
@@ -363,7 +368,7 @@ std::size_t replaceInputChunkText(std::vector<std::pair<std::string, int>> & dic
         const std::string & key = iter->first;
         int valueType = iter->second;
         std::size_t valueLength = sValueType.length(valueType);
-        if (key.size() > valueLength + 1 || key.size() == valueLength) {
+        if (key.size() >= (valueLength + 2) || key.size() == valueLength) {
             do {
 #ifdef _MSC_VER
                 substr = std::strstr(start, key.c_str());
@@ -379,6 +384,8 @@ std::size_t replaceInputChunkText(std::vector<std::pair<std::string, int>> & dic
                         *p++ = *value++;
                     }
                     // If there are two continuous 0xFF, it means empty chars.
+                    std::size_t r = key.size() - i;
+                    assert(r == 0 || r >= 2);
                     for (; i < key.size(); i++) {
                         *p++ = '\xFF';
                     }
@@ -399,8 +406,8 @@ std::size_t replaceInputChunkText(std::vector<std::pair<std::string, int>> & dic
                         // Because 0xFF, 0xFE does not appear in the UTF-8 encoding forever.
                         // 0xFF, index:high, index:low, filling ...
                         *p++ = '\xFF';
-                        *p++ = uint8_t(index / 128) + 1;
-                        *p++ = uint8_t(index % 128) + 1;
+                        *p++ = uint8_t(index / 128) + 128;
+                        *p++ = uint8_t(index % 128) + 128;
                         std::size_t i;
                         for (i = 3; i < key.size(); i++) {
                             *p++ = '\x1';
@@ -434,8 +441,10 @@ std::size_t replaceInputChunkText(std::vector<std::pair<std::string, int>> & dic
 
     // Real replacement
     uint8_t * input = (uint8_t *)input_chunk.c_str();
-    uint8_t * output = (uint8_t *)output_chunk.c_str();
-    uint8_t * input_end = (uint8_t *)input_chunk.c_str() + input_len;
+    uint8_t * input_end = (uint8_t *)input_chunk.c_str() + input_chunk_size;
+    uint8_t * output = (uint8_t *)output_chunk.c_str() + output_offset;
+    uint8_t * output_start = output;
+
     while (input < input_end) {
         uint8_t ch1;
         uint8_t ch0 = *input;
@@ -444,17 +453,12 @@ std::size_t replaceInputChunkText(std::vector<std::pair<std::string, int>> & dic
         } else {
             if (ch0 == uint8_t('\xFF')) {
                 ch1 = *(input + 1);
-                if (ch1 == uint8_t('\xFF')) {
-                    // Two continuous 0xFF
-                    input += 2;
-                    // Skip all 0xFF chars
-                    while (*input++ == uint8_t('\xFF')) {}
-                } else {
+                if (ch1 != uint8_t('\xFF')) {
                     uint8_t ch2 = *(input + 2);
-                    assert(ch1 > 0);
-                    assert(ch2 > 0);
-                    int index = (int)(ch1 - 1) * 128 + (ch2 - 1);
-                    assert(index >= 0 && index < 2000);
+                    assert(ch1 >= 128);
+                    assert(ch2 >= 128);
+                    int index = (int)(ch1 - 128) * 128 + (ch2 - 128);
+                    assert(index >= 0 && index < dict_table.size());
 
                     const std::string & key = dict_table[index].first;
                     std::string ansi_key;
@@ -470,6 +474,13 @@ std::size_t replaceInputChunkText(std::vector<std::pair<std::string, int>> & dic
 
                     assert(key.size() >= 3);
                     input += key.size();
+                } else {
+                    // Two continuous 0xFF
+                    input += 2;
+                    // Skip all 0xFF chars
+                    while (*input == uint8_t('\xFF')) {
+                        input++;
+                    }
                 }
             } else {
                 // 0xFE
@@ -477,15 +488,19 @@ std::size_t replaceInputChunkText(std::vector<std::pair<std::string, int>> & dic
                 input++;
 
                 // Skip all 0xFE chars
-                while (*input++ == uint8_t('\xFE')) {}
+                while (*input == uint8_t('\xFE')) {
+                    input++;
+                }
 
                 // TODO: XXXXX
                 //
+                assert(false);
             }
         }
     }
 
-    return std::size_t(output - (uint8_t *)output_chunk.c_str());
+    assert(output >= output_start);
+    return std::size_t(output - output_start);
 }
 
 inline void writeOutputChunk(std::ofstream & ofs,
@@ -513,9 +528,7 @@ int StringReplace_Benchmark(const std::string & dict_file,
     static const std::size_t kPageSize = 4 * 1024;
     static const std::size_t kReadChunkSize = 64 * 1024;
     static const std::size_t kWriteBlockSize = 128 * 1024;
-    
-    std::string input_chunk;
-    input_chunk.resize(kReadChunkSize + kPageSize);
+   
 
     std::ifstream ifs;
     ifs.open(input_file, std::ios::in | std::ios::binary);
@@ -533,37 +546,47 @@ int StringReplace_Benchmark(const std::string & dict_file,
         }
         ofs.seekp(0, std::ios::beg);
 
+        std::string input_chunk;
+        std::string output_chunk;
         std::vector<std::pair<int, int>> short_keys;
-        std::string output_chunk, output_tmp;
-        std::size_t outputBytes, writeBufSize = 0, tmpBufSize = 0;
 
-        output_chunk.resize(kWriteBlockSize + kReadChunkSize + kPageSize);
-        output_tmp.resize(kWriteBlockSize + kReadChunkSize + kPageSize);
+        input_chunk.resize(kReadChunkSize + kPageSize);
+        output_chunk.resize(kWriteBlockSize + kReadChunkSize + kPageSize);       
+
+        std::size_t input_offset = 0;
+        std::size_t writeBufSize = 0;
 
         do {
             std::size_t lastNewLinePos;
-            char saveChar;
             short_keys.clear();
-            input_chunk.clear();
 
-            std::size_t totalReadBytes = readAInputChunk<kReadChunkSize>(ifs, input_chunk);
+            std::size_t totalReadBytes = readInputChunk(ifs, input_chunk, input_offset,
+                                                        kReadChunkSize - input_offset);
             if (totalReadBytes != 0) {
                 lastNewLinePos = input_chunk.find_last_of('\n', totalReadBytes - 1);
                 if (lastNewLinePos != std::string::npos) {
-                    saveChar = input_chunk[lastNewLinePos];
+                    char saveChar = input_chunk[lastNewLinePos];
                     input_chunk[lastNewLinePos] = '\0';
-                    outputBytes = replaceInputChunkText(dict_table, input_chunk, lastNewLinePos,
-                                                        short_keys, output_chunk);
+                    std::size_t output_offset = writeBufSize;
+                    std::size_t outputBytes = replaceInputChunkText(
+                                                    dict_table, input_chunk, lastNewLinePos,
+                                                    short_keys, output_chunk, output_offset);
                     input_chunk[lastNewLinePos] = saveChar;
                     writeBufSize += outputBytes;
                     if (writeBufSize >= kWriteBlockSize) {
                         writeOutputChunk(ofs, output_chunk, kWriteBlockSize);
-                        tmpBufSize = (std::size_t)(writeBufSize - kWriteBlockSize);
-                        output_chunk.copy(&output_tmp[0], tmpBufSize, kWriteBlockSize);
+                        std::size_t remainBytes = writeBufSize - kWriteBlockSize;
+                        // Move the remainning bytes to head
+                        std::copy_n(&output_chunk[kWriteBlockSize], remainBytes, &output_chunk[0]);
                         writeBufSize -= kWriteBlockSize;
-                        output_chunk.clear();
-                        output_chunk.append(&output_tmp[0], tmpBufSize);
                     }
+                    assert((input_offset + totalReadBytes) >= (lastNewLinePos + 1));
+                    std::size_t tailingBytes = input_offset + totalReadBytes - (lastNewLinePos + 1);
+                    if (tailingBytes > 0) {
+                        // Move the tailing bytes to head
+                        std::copy_n(&input_chunk[lastNewLinePos + 1], tailingBytes, &input_chunk[0]);
+                    }
+                    input_offset = tailingBytes;
                 }
                 inputTotalSize -= totalReadBytes;
             }
@@ -572,7 +595,6 @@ int StringReplace_Benchmark(const std::string & dict_file,
 
         if (writeBufSize != 0) {
             writeOutputChunk(ofs, output_chunk, writeBufSize);
-            output_chunk.clear();
         }
 
         assert(inputTotalSize == 0);
@@ -611,7 +633,7 @@ int main(int argc, char * argv[])
 
     const char * default_dict_file = "dict.txt";
     const char * default_input_file = "video_title.txt";
-    const char * default_output_file = "result_output.txt";
+    const char * default_output_file = "output_result.txt";
 
     const char * dict_file = nullptr;
     const char * input_file = nullptr;
