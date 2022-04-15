@@ -1,2 +1,4 @@
 
+./StringReplace ./data/dict.txt ./data/video_title.txt ./output_result.txt
+
 ./StringReplace ./data/dict.txt ./data/video_title_small.txt ./output_result.txt

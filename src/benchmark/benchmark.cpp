@@ -386,8 +386,8 @@ void replaceInputChunkText(std::list<std::pair<std::string, int>> & dict_list,
                         // Because 0xFF, 0xFE does not appear in the UTF-8 encoding forever.
                         // 0xFF, index:high, index:low, filling ...
                         *p++ = '\xFF';
-                        *p++ = uint8_t(index / 256);
-                        *p++ = uint8_t(index % 256);
+                        *p++ = uint8_t(index / 128) + 1;
+                        *p++ = uint8_t(index % 128) + 1;
                         std::size_t i;
                         for (i = 4; i < key.size(); i++) {
                             *p++ = '\x1';
@@ -556,7 +556,7 @@ int main(int argc, char * argv[])
 
     double elapsedTime = sw.getMillisec();
 
-    printf("Elapsed Time: %0.2f\n\n", elapsedTime);
+    printf("Elapsed time: %0.2f ms\n\n", elapsedTime);
 
 #if (defined(_DEBUG) && defined(_MSC_VER))
     ::system("pause");
