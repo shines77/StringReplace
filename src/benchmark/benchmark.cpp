@@ -326,7 +326,7 @@ Find_KV:
     printf("\n");
 }
 
-#if 1
+#if 0
 
 std::size_t readInputChunk(std::ifstream & ifs, std::string & input_chunk,
                            std::size_t offset, std::size_t needReadBytes)
@@ -335,7 +335,6 @@ std::size_t readInputChunk(std::ifstream & ifs, std::string & input_chunk,
     std::size_t totalReadBytes = 0;
 
     while ((needReadBytes > 0) && !ifs.eof()) {
-        //std::streamsize readBytes = ifs.readsome(input_buf, needReadBytes);
         ifs.read(input_buf, needReadBytes);
         std::streamsize readBytes = ifs.gcount();
 
