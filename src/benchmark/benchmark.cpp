@@ -8,6 +8,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
+#include <inttypes.h>
 #include <time.h>
 #include <string.h>
 
@@ -27,11 +28,7 @@
 #include <stdalign.h>   // C11 defines _Alignas().  This header defines alignas()
 #endif
 
-#define TEST_ALL_BENCHMARK          1
-#define USE_ALIGNED_PATTAEN         1
-
-#define SWITCH_BENCHMARK_TEST       0
-#define ENABLE_AHOCORASICK_TEST     0
+#define USE_READ_WRITE_STATISTICS   0
 
 #include "StringMatch.h"
 #include "support/StopWatch.h"
@@ -329,6 +326,32 @@ Find_KV:
     printf("\n");
 }
 
+#if 1
+
+std::size_t readInputChunk(std::ifstream & ifs, std::string & input_chunk,
+                           std::size_t offset, std::size_t needReadBytes)
+{
+    char * input_buf = &input_chunk[offset];
+    std::size_t totalReadBytes = 0;
+
+    while ((needReadBytes > 0) && !ifs.eof()) {
+        //std::streamsize readBytes = ifs.readsome(input_buf, needReadBytes);
+        ifs.read(input_buf, needReadBytes);
+        std::streamsize readBytes = ifs.gcount();
+
+        if (readBytes > 0) {
+            input_buf += readBytes;
+            totalReadBytes += readBytes;
+            needReadBytes -= readBytes;
+        }
+        else break;
+    }
+
+    return totalReadBytes;
+}
+
+#else
+
 std::size_t readInputChunk(std::ifstream & ifs, std::string & input_chunk,
                            std::size_t offset, std::size_t needReadBytes)
 {
@@ -354,6 +377,8 @@ std::size_t readInputChunk(std::ifstream & ifs, std::string & input_chunk,
 
     return totalReadBytes;
 }
+
+#endif
 
 std::size_t replaceInputChunkText(std::vector<std::pair<std::string, int>> & dict_table,
                                   std::string & input_chunk, std::size_t input_chunk_size,
@@ -394,7 +419,7 @@ std::size_t replaceInputChunkText(std::vector<std::pair<std::string, int>> & dic
                 else break;
             } while (1);
         } else {
-            if (key.size() >= 3) {
+            if (true || key.size() >= 3) {
                 do {
 #ifdef _MSC_VER
                     substr = std::strstr(start, key.c_str());
@@ -417,6 +442,7 @@ std::size_t replaceInputChunkText(std::vector<std::pair<std::string, int>> & dic
                     else break;
                 } while (1);
             } else {
+#if 0
                 do {
 #ifdef _MSC_VER
                     substr = std::strstr(start, key.c_str());
@@ -434,6 +460,7 @@ std::size_t replaceInputChunkText(std::vector<std::pair<std::string, int>> & dic
                     }
                     else break;
                 } while (1);
+#endif
             }
         }
         index++;
@@ -483,6 +510,7 @@ std::size_t replaceInputChunkText(std::vector<std::pair<std::string, int>> & dic
                     }
                 }
             } else {
+#if 0
                 // 0xFE
                 assert(ch0 == uint8_t('\xFE'));
                 input++;
@@ -495,6 +523,7 @@ std::size_t replaceInputChunkText(std::vector<std::pair<std::string, int>> & dic
                 // TODO: XXXXX
                 //
                 assert(false);
+#endif
             }
         }
     }
@@ -528,7 +557,14 @@ int StringReplace_Benchmark(const std::string & dict_file,
     static const std::size_t kPageSize = 4 * 1024;
     static const std::size_t kReadChunkSize = 64 * 1024;
     static const std::size_t kWriteBlockSize = 128 * 1024;
-   
+
+#if USE_READ_WRITE_STATISTICS
+    std::size_t globalReadBytes = 0;
+    std::size_t globalReadCount = 0;
+
+    std::size_t globalWriteBytes = 0;
+    std::size_t globalWriteCount = 0;
+#endif
 
     std::ifstream ifs;
     ifs.open(input_file, std::ios::in | std::ios::binary);
@@ -551,37 +587,44 @@ int StringReplace_Benchmark(const std::string & dict_file,
         std::vector<std::pair<int, int>> short_keys;
 
         input_chunk.resize(kReadChunkSize + kPageSize);
-        output_chunk.resize(kWriteBlockSize + kReadChunkSize + kPageSize);       
+        output_chunk.resize(kWriteBlockSize + kReadChunkSize + kPageSize);
 
         std::size_t input_offset = 0;
         std::size_t writeBufSize = 0;
 
         do {
-            std::size_t lastNewLinePos;
             short_keys.clear();
 
             std::size_t totalReadBytes = readInputChunk(ifs, input_chunk, input_offset,
                                                         kReadChunkSize - input_offset);
             if (totalReadBytes != 0) {
-                lastNewLinePos = input_chunk.find_last_of('\n', totalReadBytes - 1);
+#if USE_READ_WRITE_STATISTICS
+                globalReadBytes += totalReadBytes;
+                globalReadCount++;
+#endif
+                std::size_t lastNewLinePos = input_chunk.find_last_of('\n', kReadChunkSize - 1);
                 if (lastNewLinePos != std::string::npos) {
-                    char saveChar = input_chunk[lastNewLinePos];
+                    //char saveChar = input_chunk[lastNewLinePos];
                     input_chunk[lastNewLinePos] = '\0';
                     std::size_t output_offset = writeBufSize;
                     std::size_t outputBytes = replaceInputChunkText(
                                                     dict_table, input_chunk, lastNewLinePos,
                                                     short_keys, output_chunk, output_offset);
-                    input_chunk[lastNewLinePos] = saveChar;
+                    input_chunk[lastNewLinePos] = '\n';
                     writeBufSize += outputBytes;
                     if (writeBufSize >= kWriteBlockSize) {
                         writeOutputChunk(ofs, output_chunk, kWriteBlockSize);
                         std::size_t remainBytes = writeBufSize - kWriteBlockSize;
-                        // Move the remainning bytes to head
+                        // Move the remaining bytes to head
                         std::copy_n(&output_chunk[kWriteBlockSize], remainBytes, &output_chunk[0]);
                         writeBufSize -= kWriteBlockSize;
+#if USE_READ_WRITE_STATISTICS
+                        globalWriteBytes += kWriteBlockSize;
+                        globalWriteCount++;
+#endif
                     }
                     assert((input_offset + totalReadBytes) >= (lastNewLinePos + 1));
-                    std::size_t tailingBytes = input_offset + totalReadBytes - (lastNewLinePos + 1);
+                    std::size_t tailingBytes = kReadChunkSize - (lastNewLinePos + 1);
                     if (tailingBytes > 0) {
                         // Move the tailing bytes to head
                         std::copy_n(&input_chunk[lastNewLinePos + 1], tailingBytes, &input_chunk[0]);
@@ -595,12 +638,24 @@ int StringReplace_Benchmark(const std::string & dict_file,
 
         if (writeBufSize != 0) {
             writeOutputChunk(ofs, output_chunk, writeBufSize);
+#if USE_READ_WRITE_STATISTICS
+            globalWriteBytes += writeBufSize;
+            globalWriteCount++;
+#endif
         }
 
         assert(inputTotalSize == 0);
 
         ofs.close();
         ifs.close();
+
+#if USE_READ_WRITE_STATISTICS
+        printf("globalReadCount = %" PRIu64 ", globalWriteCount = %" PRIu64 ".\n",
+                globalReadCount, globalWriteCount);
+        printf("globalReadBytes = %" PRIu64 ", globalWriteBytes = %" PRIu64 ".\n",
+                globalReadBytes, globalWriteBytes);
+        printf("\n");
+#endif
         return 0;
     }
 
