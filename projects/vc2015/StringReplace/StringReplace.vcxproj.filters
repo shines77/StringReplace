@@ -21,5 +21,11 @@
     <ClInclude Include="..\..\..\src\benchmark\win_iconv.h">
       <Filter>src\benchmark</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\src\benchmark\strstr_benchmark.h">
+      <Filter>src\benchmark</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\src\benchmark\benchmark.h">
+      <Filter>src\benchmark</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
