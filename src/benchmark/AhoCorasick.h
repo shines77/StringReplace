@@ -75,6 +75,13 @@ public:
         std::map<std::uint32_t, identifier_t>   next_link;
     };
 
+    struct MatchInfo {
+        std::uint32_t first;
+        std::uint32_t last;
+        std::uint32_t pattern_id;
+        std::uint32_t reserve;
+    };
+
     #pragma pack(pop)
 
     typedef State   state_type;
@@ -203,6 +210,53 @@ public:
                 queue.push_back(next);
             }
         }
+    }
+
+    template <typename T>
+    bool search(const T * first, const T * last, MatchInfo & matchInfo) {
+        bool matched = false;
+        uchar_type * text_first = (uchar_type *)first;
+        uchar_type * text_last = (uchar_type *)last;
+        uchar_type * text = text_first;
+        uchar_type * match_first = text_first;
+        uchar_type * match_last = nullptr;
+        assert(text_first <= text_last);
+
+        identifier_t cur = this->root();
+        while (text < text_last) {
+            assert(this->is_valid_id(cur));
+            State & cur_state = this->states_[cur];
+            std::uint32_t lable = (std::uint32_t)*text++;
+            auto const & iter = cur_state.next_link.find(lable);
+            if (iter == cur_state.next_link.end()) {
+                if (cur_state.is_final == 0) {
+                    identifier_t fail_link = cur_state.fail_link;
+                    if (fail_link == kInvalidLink) {
+                        // cur = root
+                        cur = this->root();
+                        match_first = text;
+                        //break;
+                    } else {
+                        if (fail_link == this->root()) {
+                            match_first = text;
+                        }
+                        // cur = cur.fail
+                        cur = fail_link;
+                    }
+                } else {
+                    matchInfo.first = (std::uint32_t)(match_first - text_first);
+                    matchInfo.last = (std::uint32_t)(text - 1 - text_first);
+                    matchInfo.pattern_id = cur_state.pattern_id;
+                    matchInfo.reserve = 0;
+                    return true;
+                }
+            } else {
+                // cur = cur.next[i]
+                cur = iter->second;
+            }
+        }
+
+        return matched;
     }
 
 private:
