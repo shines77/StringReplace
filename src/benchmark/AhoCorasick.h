@@ -163,11 +163,7 @@ public:
                 identifier_t next = iter->second;
                 State & next_state = this->states_[next];
                 assert(this->is_valid_id(next));
-                if (likely(cur == root)) {
-                    next_state.fail_link = root;
-                    queue.push_back(next);
-                }
-                else {
+                if (likely(cur != root)) {
                     identifier_t node = cur_state.fail_link;
                     do {
                         if (likely(node != kInvalidLink)) {
@@ -189,8 +185,11 @@ public:
                             break;
                         }
                     } while (1);
-                    queue.push_back(next);
                 }
+                else {
+                    next_state.fail_link = root;
+                }
+                queue.push_back(next);
             }
         }
     }
