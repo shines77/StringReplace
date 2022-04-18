@@ -31,6 +31,7 @@
 #include <algorithm>
 
 #include "StringMatch.h"
+#include "support/StopWatch.h"
 
 static const char * gValueText[4] = {
 #ifdef _MSC_VER

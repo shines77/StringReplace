@@ -58,12 +58,20 @@ public:
     static const identifier_t kRootLink = 1;
 
     static const size_type kMaxAscii = 256;
+    static const std::uint32_t kPatternIdMask = 0x7FFFFFFFu;
+    static const std::uint32_t kIsFinalMask = 0x80000000u;
 
     #pragma pack(push, 1)
 
     struct State {
         identifier_t                            fail_link;
-        std::uint32_t                           is_final;
+        union {
+            struct {
+                std::uint32_t                   pattern_id : 31;
+                std::uint32_t                   is_final   : 1;
+            };
+            std::uint32_t                       identifier;
+        };
         std::map<std::uint32_t, identifier_t>   next_link;
     };
 
@@ -112,7 +120,7 @@ public:
         return kRootLink;
     }
 
-    void appendPattern(const char_type * pattern, size_type length) {
+    void appendPattern(const char_type * pattern, size_type length, std::uint32_t id) {
         identifier_t root = this->root();
         identifier_t cur = root;
         assert(this->is_valid_id(cur));
@@ -127,7 +135,7 @@ public:
 
                 State next_state;
                 next_state.fail_link = kInvalidLink;
-                next_state.is_final = 0;
+                next_state.identifier = 0;
                 this->states_.push_back(next_state);
 
                 assert(next == this->last_state_id());
@@ -144,11 +152,14 @@ public:
         // Setting the leaf state
         assert(this->is_valid_id(cur));
         State & leaf_state = this->states_[cur];
-        leaf_state.is_final = 1;
+        //leaf_state.pattern_id = id & kPatternIdMask;
+        //leaf_state.is_final = 1;
+        leaf_state.identifier = (id & kPatternIdMask) | kIsFinalMask;
     }
 
     void build() {
         std::vector<identifier_t> queue;
+        queue.reserve(this->states_.size());
 
         identifier_t root = this->root();
         queue.push_back(root);
@@ -201,13 +212,13 @@ private:
         // Append dummy state for invalid link, Identifier = 0
         State dummy;
         dummy.fail_link = kInvalidLink;
-        dummy.is_final = 0;
+        dummy.identifier = 0;
         this->states_.push_back(std::move(dummy));
 
         // Append Root state, Identifier = 1
         State root;
         root.fail_link = kInvalidLink;
-        root.is_final = 0;
+        root.identifier = 0;
         this->states_.push_back(std::move(root));
     }
 };

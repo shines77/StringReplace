@@ -44,12 +44,12 @@ namespace darts_bench {
 void AcTire_test()
 {
     AcTrie<char> ac_trie;
-    ac_trie.appendPattern("abcd", 4);
-    ac_trie.appendPattern("abef", 4);
-    ac_trie.appendPattern("ghjsdasf", 8);
-    ac_trie.appendPattern("Hello", 5);
-    ac_trie.appendPattern("Hello World", 11);
-    ac_trie.appendPattern("test", 4);
+    ac_trie.appendPattern("abcd", 4, 0);
+    ac_trie.appendPattern("abef", 4, 1);
+    ac_trie.appendPattern("ghjsdasf", 8, 2);
+    ac_trie.appendPattern("Hello", 5, 3);
+    ac_trie.appendPattern("Hello World", 11, 4);
+    ac_trie.appendPattern("test", 4, 5);
 
     ac_trie.build();
 
@@ -130,16 +130,28 @@ int StringReplace(const std::string & dict_file,
     static const std::size_t kReadChunkSize = 64 * 1024;
     static const std::size_t kWriteBlockSize = 128 * 1024;
 
+    test::StopWatch sw;
+
+    sw.start();
+
     AcTrie<char> ac_trie;
+    std::uint32_t index = 0;
     for (auto iter = dict_list.begin(); iter != dict_list.end(); ++iter) {
         const std::string & key = iter->first;
-        ac_trie.appendPattern(key.c_str(), key.size());
+        ac_trie.appendPattern(key.c_str(), key.size(), index);
+        index++;
     };
 
     ac_trie.build();
 
+    sw.stop();
+
+    double elapsedTime = sw.getMillisec();
+
     printf("ac_trie.max_state_id() = %u\n", (uint32_t)ac_trie.max_state_id());
     printf("ac_trie.state(30).is_final = %u\n\n", ac_trie.state(30).is_final);
+
+    printf("ac_trie build elapsed time: %0.2f ms\n\n", elapsedTime);
 
     return 0;
 }
