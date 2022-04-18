@@ -62,9 +62,9 @@ public:
     #pragma pack(push, 1)
 
     struct State {
-        identifier_t                        fail_link;
-        std::uint32_t                       is_final;
-        std::map<uchar_type, identifier_t>  next_link;
+        identifier_t                            fail_link;
+        std::uint32_t                           is_final;
+        std::map<std::uint32_t, identifier_t>   next_link;
     };
 
     #pragma pack(pop)
@@ -118,7 +118,7 @@ public:
         assert(this->is_valid_id(cur));
 
         for (size_type i = 0; i < length; i++) {
-            uchar_type label = (uchar_type)*pattern++;
+            std::uint32_t label = (uchar_type)*pattern++;
             State & cur_state = this->states_[cur];
             auto iter = cur_state.next_link.find(label);
             if (likely(iter == cur_state.next_link.end())) {
@@ -159,7 +159,7 @@ public:
             State & cur_state = this->states_[cur];
             for (auto iter = cur_state.next_link.begin();
                 iter != cur_state.next_link.end(); ++iter) {
-                uchar_type label = iter->first;
+                std::uint32_t label = iter->first;
                 identifier_t next = iter->second;
                 State & next_state = this->states_[next];
                 assert(this->is_valid_id(next));
