@@ -87,43 +87,43 @@ void preprocessing_dict_file(const std::string & dict_kv,
     std::size_t total_size = dict_kv.size();
     printf("strstr_bench::preprocessing_dict_file()\n\n");
 
+    bool last_line_processed = false;
     std::uint32_t kv_index = 0;
     std::size_t last_pos = 0;
     do {
         std::size_t next_pos = dict_kv.find_first_of('\n', last_pos);
-        if (next_pos != std::string::npos) {
-Find_KV:
-            std::size_t sep_pos = find_kv_separator(dict_kv, last_pos, next_pos, '\t');
-            if (sep_pos != std::string::npos) {
-                std::string key, value;
-                std::size_t key_len = sep_pos - last_pos;
-                key.resize(key_len);
-                dict_kv.copy(&key[0], key_len, last_pos);
+        if (next_pos == std::string::npos)
+            next_pos = total_size;
+
+        std::size_t sep_pos = find_kv_separator(dict_kv, last_pos, next_pos, '\t');
+        if (sep_pos != std::string::npos) {
+            std::string key, value;
+            std::size_t key_len = sep_pos - last_pos;
+            key.resize(key_len);
+            dict_kv.copy(&key[0], key_len, last_pos);
 #if 0
-                std::size_t value_len = next_pos - (sep_pos + 1);
-                value.resize(value_len);
-                dict_kv.copy(&value[0], value_len, sep_pos + 1);
+            std::size_t value_len = next_pos - (sep_pos + 1);
+            value.resize(value_len);
+            dict_kv.copy(&value[0], value_len, sep_pos + 1);
 
-                std::string key_ansi;
-                utf8_to_ansi(key, key_ansi);
+            std::string key_ansi;
+            utf8_to_ansi(key, key_ansi);
 
-                std::string value_ansi;
-                utf8_to_ansi(value, value_ansi);
-                printf("%4u, key: [ %s ], value: [ %s ].\n", kv_index + 1, key_ansi.c_str(), value_ansi.c_str());
+            std::string value_ansi;
+            utf8_to_ansi(value, value_ansi);
+            printf("%4u, key: [ %s ], value: [ %s ].\n", kv_index + 1, key_ansi.c_str(), value_ansi.c_str());
 #endif
-                int value_type = ValueType::parseValueType(dict_kv, sep_pos + 1, next_pos);
+            int value_type = ValueType::parseValueType(dict_kv, sep_pos + 1, next_pos);
 
-                int index = insert_kv_list(dict_list, key, value_type);
-            }
-            last_pos = next_pos + 1;
-            kv_index++;
-        } else {
-            if (next_pos < total_size) {
-                next_pos = total_size;
-                goto Find_KV;
-            }
-            else break;
+            int index = insert_kv_list(dict_list, key, value_type);
         }
+
+        kv_index++;
+
+        // Next line
+        last_pos = next_pos + 1;
+        if (next_pos == total_size)
+            break;
     } while (1);
 
     int li_index = 0;
@@ -147,8 +147,13 @@ std::size_t replaceInputChunkText(std::vector<std::pair<std::string, int>> & dic
                                   std::string & output_chunk, std::size_t output_offset)
 {
     const char * chunk_first = input_chunk.c_str();
+    const char * chunk_last = input_chunk.c_str() + input_chunk_size;
     const char * substr;
     int index = 0;
+
+    if (input_chunk_size == 0)
+        return 0;
+
     for (auto iter = dict_table.begin(); iter != dict_table.end(); ++iter) {
         const char * start = chunk_first;
         const std::string & key = iter->first;
@@ -162,6 +167,8 @@ std::size_t replaceInputChunkText(std::vector<std::pair<std::string, int>> & dic
                 substr = A_strstr(start, key.c_str());
 #endif
                 if (substr != nullptr) {
+                    if ((substr + key.size()) > chunk_last || substr >= chunk_last)
+                        break;
                     // Replace text use key, filling the remaining space.
                     uint8_t * p = (uint8_t *)substr;
                     uint8_t * value = (uint8_t *)ValueType::toString(valueType);
@@ -176,6 +183,8 @@ std::size_t replaceInputChunkText(std::vector<std::pair<std::string, int>> & dic
                         *p++ = '\xFF';
                     }
                     start = substr + key.size();
+                    if (start >= chunk_last)
+                        break;
                 }
                 else break;
             } while (1);
@@ -188,6 +197,9 @@ std::size_t replaceInputChunkText(std::vector<std::pair<std::string, int>> & dic
                     substr = A_strstr(start, key.c_str());
 #endif
                     if (substr != nullptr) {
+                        if ((substr + key.size()) > chunk_last || substr >= chunk_last)
+                            break;
+
                         uint8_t * p = (uint8_t *)substr;
                         // Because 0xFF, 0xFE does not appear in the UTF-8 encoding forever.
                         // 0xFF, index:high, index:low, filling ...
@@ -199,6 +211,8 @@ std::size_t replaceInputChunkText(std::vector<std::pair<std::string, int>> & dic
                             *p++ = '\x1';
                         }
                         start = substr + key.size();
+                        if (start >= chunk_last)
+                            break;
                     }
                     else break;
                 } while (1);
@@ -211,6 +225,9 @@ std::size_t replaceInputChunkText(std::vector<std::pair<std::string, int>> & dic
                     substr = A_strstr(start, key.c_str());
 #endif
                     if (substr != nullptr) {
+                        if ((substr + key.size()) > chunk_last || substr >= chunk_last)
+                            break;
+
                         uint8_t * p = (uint8_t *)substr;
                         // 0xFE, 0xFE, ...
                         for (std::size_t i = 0; i < key.size(); i++) {
@@ -218,6 +235,8 @@ std::size_t replaceInputChunkText(std::vector<std::pair<std::string, int>> & dic
                         }
                         short_keys.push_back(std::make_pair(int(start - chunk_first), index));
                         start = substr + key.size();
+                        if (start >= chunk_last)
+                            break;
                     }
                     else break;
                 } while (1);
@@ -363,47 +382,65 @@ int StringReplace(const std::string & dict_file,
                 globalReadBytes += totalReadBytes;
                 globalReadCount++;
 #endif
-                std::size_t lastNewLinePos = input_chunk.find_last_of('\n', kReadChunkSize - 1);
-                if (lastNewLinePos != std::string::npos) {
-                    //char saveChar = input_chunk[lastNewLinePos];
-                    input_chunk[lastNewLinePos] = '\0';
+                std::size_t input_chunk_last;
+                std::size_t actualInputChunkBytes = input_offset + totalReadBytes;
+                std::size_t lastNewLinePos = input_chunk.find_last_of('\n', actualInputChunkBytes - 1);
+                if (lastNewLinePos == std::string::npos)
+                    input_chunk_last = actualInputChunkBytes;
+                else
+                    input_chunk_last = lastNewLinePos + 1;
+
+                char saveChar = input_chunk[input_chunk_last];
+                input_chunk[input_chunk_last] = '\0';
+                std::size_t output_offset = writeBufSize;
+                std::size_t outputBytes = replaceInputChunkText(
+                                                dict_table, input_chunk, input_chunk_last,
+                                                short_keys, output_chunk, output_offset);
+                input_chunk[input_chunk_last] = saveChar;
+                writeBufSize += outputBytes;
+                if (writeBufSize >= kWriteBlockSize) {
+                    writeOutputChunk(ofs, output_chunk, kWriteBlockSize);
+                    std::size_t remainBytes = writeBufSize - kWriteBlockSize;
+                    // Move the remaining bytes to head
+                    std::copy_n(&output_chunk[kWriteBlockSize], remainBytes, &output_chunk[0]);
+                    writeBufSize -= kWriteBlockSize;
+#if USE_READ_WRITE_STATISTICS
+                    globalWriteBytes += kWriteBlockSize;
+                    globalWriteCount++;
+#endif
+                }
+                assert(actualInputChunkBytes >= input_chunk_last);
+                std::size_t tailingBytes = actualInputChunkBytes - input_chunk_last;
+                if (tailingBytes > 0) {
+                    // Move the tailing bytes to head
+                    std::copy_n(&input_chunk[input_chunk_last], tailingBytes, &input_chunk[0]);
+                }
+                input_offset = tailingBytes;
+
+                inputTotalSize -= totalReadBytes;
+            } else {
+                if (input_offset > 0) {
+                    std::size_t input_chunk_last = input_offset;
+
+                    char saveChar = input_chunk[input_chunk_last];
+                    input_chunk[input_chunk_last] = '\0';
                     std::size_t output_offset = writeBufSize;
                     std::size_t outputBytes = replaceInputChunkText(
-                                                    dict_table, input_chunk, lastNewLinePos,
+                                                    dict_table, input_chunk, input_chunk_last,
                                                     short_keys, output_chunk, output_offset);
-                    input_chunk[lastNewLinePos] = '\n';
+                    input_chunk[input_chunk_last] = saveChar;
                     writeBufSize += outputBytes;
-                    if (writeBufSize >= kWriteBlockSize) {
-                        writeOutputChunk(ofs, output_chunk, kWriteBlockSize);
-                        std::size_t remainBytes = writeBufSize - kWriteBlockSize;
-                        // Move the remaining bytes to head
-                        std::copy_n(&output_chunk[kWriteBlockSize], remainBytes, &output_chunk[0]);
-                        writeBufSize -= kWriteBlockSize;
-#if USE_READ_WRITE_STATISTICS
-                        globalWriteBytes += kWriteBlockSize;
-                        globalWriteCount++;
-#endif
-                    }
-                    assert((input_offset + totalReadBytes) >= (lastNewLinePos + 1));
-                    std::size_t tailingBytes = kReadChunkSize - (lastNewLinePos + 1);
-                    if (tailingBytes > 0) {
-                        // Move the tailing bytes to head
-                        std::copy_n(&input_chunk[lastNewLinePos + 1], tailingBytes, &input_chunk[0]);
-                    }
-                    input_offset = tailingBytes;
                 }
-                inputTotalSize -= totalReadBytes;
-            }
-            else break;
-        } while (1);
-
-        if (writeBufSize != 0) {
-            writeOutputChunk(ofs, output_chunk, writeBufSize);
+                if (writeBufSize > 0) {
+                    writeOutputChunk(ofs, output_chunk, writeBufSize);
 #if USE_READ_WRITE_STATISTICS
-            globalWriteBytes += writeBufSize;
-            globalWriteCount++;
+                    globalWriteBytes += writeBufSize;
+                    globalWriteCount++;
 #endif
-        }
+                }
+                break;
+            }
+        } while (1);
 
         assert(inputTotalSize == 0);
 
@@ -424,5 +461,7 @@ int StringReplace(const std::string & dict_file,
 }
 
 } // namespace strstr_bench
+
+#undef USE_READ_WRITE_STATISTICS
 
 #endif // STRSTR_BENCHMARK_H
