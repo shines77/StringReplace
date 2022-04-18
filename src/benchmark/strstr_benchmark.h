@@ -85,7 +85,7 @@ void preprocessing_dict_file(const std::string & dict_kv,
                              std::vector<std::pair<std::string, int>> & dict_table)
 {
     std::size_t total_size = dict_kv.size();
-    printf("preprocessing_dict_file()\n\n");
+    printf("strstr_bench::preprocessing_dict_file()\n\n");
 
     std::uint32_t kv_index = 0;
     std::size_t last_pos = 0;
@@ -300,9 +300,9 @@ inline void writeOutputChunk(std::ofstream & ofs,
     ofs.write(output_chunk.c_str(), writeBlockSize);
 }
 
-int StringReplace_Benchmark(const std::string & dict_file,
-                            const std::string & input_file,
-                            const std::string & output_file)
+int StringReplace(const std::string & dict_file,
+                  const std::string & input_file,
+                  const std::string & output_file)
 {
     std::string dict_kv;
     std::size_t dict_filesize = read_dict_file(dict_file, dict_kv);

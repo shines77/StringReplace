@@ -30,6 +30,8 @@
 #include <utility>
 #include <algorithm>
 
+#include "StringMatch.h"
+
 static const char * gValueText[4] = {
 #ifdef _MSC_VER
     u8"-*µÁ”∞*-",

@@ -157,7 +157,9 @@
     <ClCompile Include="..\..\..\src\benchmark\benchmark.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\..\src\benchmark\AhoCorasick.h" />
     <ClInclude Include="..\..\..\src\benchmark\benchmark.h" />
+    <ClInclude Include="..\..\..\src\benchmark\darts_benchmark.h" />
     <ClInclude Include="..\..\..\src\benchmark\strstr_benchmark.h" />
     <ClInclude Include="..\..\..\src\benchmark\win_iconv.h" />
   </ItemGroup>
