@@ -39,6 +39,8 @@
 // See: https://www.zhihu.com/question/352900751
 //
 
+#define USE_READ_WRITE_STATISTICS   0
+
 namespace darts_bench {
 
 void AcTire_test()
@@ -112,6 +114,84 @@ Find_KV:
     printf("\n");
 }
 
+std::size_t replaceInputChunkText(AcTrie<char> & acTrie,
+                                  std::vector<std::pair<std::string, int>> & dict_list,
+                                  std::string & input_chunk, std::size_t input_chunk_size,
+                                  std::string & output_chunk, std::size_t output_offset)
+{
+    uint8_t * input_end = (uint8_t *)input_chunk.c_str() + input_chunk_size;
+    uint8_t * output = (uint8_t *)output_chunk.c_str() + output_offset;
+    uint8_t * output_start = output;
+
+    bool last_line_processed = false;
+    std::size_t line_no = 0;
+    std::size_t offset = 0;
+    uint8_t * line_first = (uint8_t *)input_chunk.c_str() + offset;
+    uint8_t * line_last;
+
+    while (line_first < input_end) {
+        std::size_t newline = input_chunk.find_first_of('\n', offset);
+        if (newline == std::string::npos)
+            newline = input_chunk_size;
+
+        line_first = (uint8_t *)input_chunk.c_str() + offset;
+        line_last = (uint8_t *)input_chunk.c_str() + newline;
+        AcTrie<char>::MatchInfo matchInfo;
+        while (line_first < line_last) {
+            bool matched = acTrie.search(line_first, line_last, matchInfo);
+            if (!matched) {
+                    while (line_first < line_last) {
+                        *output++ = *line_first++;
+                    }
+                    break;
+            } else {
+                std::size_t match_first = matchInfo.first;
+                std::size_t match_last = matchInfo.last;
+                std::size_t pattern_id = matchInfo.pattern_id;
+                assert(pattern_id < dict_list.size());
+
+                uint8_t * line_mid = line_first + match_first;
+                while (line_first < line_mid) {
+                    *output++ = *line_first++;
+                }
+
+                const std::pair<std::string, int> & dict_info = dict_list[pattern_id];
+                const std::string & key = dict_info.first;
+                int valueType = dict_info.second;
+                uint8_t * value = (uint8_t *)ValueType::toString(valueType);
+                std::size_t valueLength = ValueType::length(valueType);
+                assert(std::size_t(match_last - match_first) == key.size());
+
+                uint8_t * value_end = value + valueLength;
+                while (value < value_end) {
+                    *output++ = *value++;
+                }
+
+                line_first += key.size();
+            }
+        }
+
+        line_no++;
+
+        // Next line
+        offset = newline + 1;
+        if (newline != input_chunk_size)
+            *output++ = '\n';
+        else
+            break;
+    }
+
+    assert(output >= output_start);
+    return std::size_t(output - output_start);
+}
+
+inline void writeOutputChunk(std::ofstream & ofs,
+                             const std::string & output_chunk,
+                             std::size_t writeBlockSize)
+{
+    ofs.write(output_chunk.c_str(), writeBlockSize);
+}
+
 int StringReplace(const std::string & dict_file,
                   const std::string & input_file,
                   const std::string & output_file)
@@ -153,9 +233,128 @@ int StringReplace(const std::string & dict_file,
 
     printf("ac_trie build elapsed time: %0.2f ms\n\n", elapsedTime);
 
-    return 0;
+#if USE_READ_WRITE_STATISTICS
+    std::size_t globalReadBytes = 0;
+    std::size_t globalReadCount = 0;
+
+    std::size_t globalWriteBytes = 0;
+    std::size_t globalWriteCount = 0;
+#endif
+
+    std::ifstream ifs;
+    ifs.open(input_file, std::ios::in | std::ios::binary);
+    if (ifs.good()) {
+        ifs.seekg(0, std::ios::end);
+        std::size_t inputTotalSize = (std::size_t)ifs.tellg();
+        ifs.seekg(0, std::ios::beg);
+        std::streampos read_pos = ifs.tellg();
+
+        std::ofstream ofs;
+        ofs.open(output_file, std::ios::out | std::ios::binary);
+        if (!ofs.good()) {
+            ifs.close();
+            return -1;
+        }
+        ofs.seekp(0, std::ios::beg);
+
+        std::string input_chunk;
+        std::string output_chunk;
+
+        input_chunk.resize(kReadChunkSize + kPageSize);
+        output_chunk.resize(kWriteBlockSize + kReadChunkSize + kPageSize);
+
+        std::size_t input_offset = 0;
+        std::size_t writeBufSize = 0;
+
+        do {
+            std::size_t totalReadBytes = readInputChunk(ifs, input_chunk, input_offset,
+                                                        kReadChunkSize - input_offset);
+            if (totalReadBytes != 0) {
+#if USE_READ_WRITE_STATISTICS
+                globalReadBytes += totalReadBytes;
+                globalReadCount++;
+#endif
+                std::size_t input_chunk_last;
+                std::size_t actualInputChunkBytes = input_offset + totalReadBytes;
+                std::size_t lastNewLinePos = input_chunk.find_last_of('\n', actualInputChunkBytes - 1);
+                if (lastNewLinePos == std::string::npos)
+                    input_chunk_last = actualInputChunkBytes;
+                else
+                    input_chunk_last = lastNewLinePos + 1;
+
+                //char saveChar = input_chunk[input_chunk_last];
+                //input_chunk[input_chunk_last] = '\0';
+                std::size_t output_offset = writeBufSize;
+                std::size_t outputBytes = replaceInputChunkText(
+                                                ac_trie, dict_list,
+                                                input_chunk, input_chunk_last,
+                                                output_chunk, output_offset);
+                //input_chunk[input_chunk_last] = saveChar;
+                writeBufSize += outputBytes;
+                if (writeBufSize >= kWriteBlockSize) {
+                    writeOutputChunk(ofs, output_chunk, kWriteBlockSize);
+                    std::size_t remainBytes = writeBufSize - kWriteBlockSize;
+                    // Move the remaining bytes to head
+                    std::copy_n(&output_chunk[kWriteBlockSize], remainBytes, &output_chunk[0]);
+                    writeBufSize -= kWriteBlockSize;
+#if USE_READ_WRITE_STATISTICS
+                    globalWriteBytes += kWriteBlockSize;
+                    globalWriteCount++;
+#endif
+                }
+                assert(actualInputChunkBytes >= input_chunk_last);
+                std::size_t tailingBytes = actualInputChunkBytes - input_chunk_last;
+                if (tailingBytes > 0) {
+                    // Move the tailing bytes to head
+                    std::copy_n(&input_chunk[input_chunk_last], tailingBytes, &input_chunk[0]);
+                }
+                input_offset = tailingBytes;
+
+                inputTotalSize -= totalReadBytes;
+            } else {
+                if (input_offset > 0) {
+                    std::size_t input_chunk_last = input_offset;
+                    char saveChar = input_chunk[input_chunk_last];
+                    input_chunk[input_chunk_last] = '\0';
+                    std::size_t output_offset = writeBufSize;
+                    std::size_t outputBytes = replaceInputChunkText(
+                                                    ac_trie, dict_list,
+                                                    input_chunk, input_chunk_last,
+                                                    output_chunk, output_offset);
+                    input_chunk[input_chunk_last] = saveChar;
+                    writeBufSize += outputBytes;
+                }
+                if (writeBufSize > 0) {
+                    writeOutputChunk(ofs, output_chunk, writeBufSize);
+#if USE_READ_WRITE_STATISTICS
+                    globalWriteBytes += writeBufSize;
+                    globalWriteCount++;
+#endif
+                }
+                break;
+            }
+        } while (1);
+
+        assert(inputTotalSize == 0);
+
+        ofs.close();
+        ifs.close();
+
+#if USE_READ_WRITE_STATISTICS
+        printf("globalReadCount = %" PRIu64 ", globalWriteCount = %" PRIu64 ".\n",
+                globalReadCount, globalWriteCount);
+        printf("globalReadBytes = %" PRIu64 ", globalWriteBytes = %" PRIu64 ".\n",
+                globalReadBytes, globalWriteBytes);
+        printf("\n");
+#endif
+        return 0;
+    }
+
+    return -1;
 }
 
 } // namespace darts_bench
+
+#undef USE_READ_WRITE_STATISTICS
 
 #endif // DARTS_BENCHMARK_H
