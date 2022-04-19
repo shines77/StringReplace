@@ -117,6 +117,31 @@ void utf8_to_ansi(const std::string & utf_8, std::string & ansi)
 #endif
 }
 
+//
+// splicing(AAAA.BBB.txt, CCCC) ==> AAAA.BBB_CCCC.txt
+//
+std::string splicing_file_name(const std::string & filename, const std::string & name)
+{
+    std::string ret_file;
+    std::size_t dot_pos = filename.find_last_of('.', std::string::npos);
+    if (dot_pos != std::string::npos) {
+        std::size_t i;
+        // Copy AAAA.BBB
+        for (i = 0; i < dot_pos; i++)
+            ret_file.push_back(filename[i]);
+        // Copy _CCCC
+        ret_file.push_back('_');
+        for (i = 0; i < name.size(); i++) 
+            ret_file.push_back(name[i]);
+        // Copy .txt
+        for (i = dot_pos; i < filename.size(); i++)
+            ret_file.push_back(filename[i]);
+    } else {
+        ret_file = filename + name;
+    }
+    return ret_file;
+}
+
 std::size_t read_dict_file(const std::string & dict_file, std::string & content)
 {
     static const size_t kReadBufSize = 8 * 1024;

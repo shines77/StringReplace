@@ -43,6 +43,8 @@
 
 namespace darts_bench {
 
+static const bool kShowKeyValueList = false;
+
 void AcTire_test()
 {
     AcTrie<char> ac_trie;
@@ -103,12 +105,14 @@ Find_KV:
         }
     } while (1);
 
-    int li_index = 0;
-    for (auto iter = dict_list.begin(); iter != dict_list.end(); ++iter) {
-        std::string key_ansi;
-        utf8_to_ansi(iter->first, key_ansi);
-        printf("%4u, key: [ %s ], value: %d.\n", li_index + 1, key_ansi.c_str(), iter->second);
-        li_index++;
+    if (kShowKeyValueList) {
+        int li_index = 0;
+        for (auto iter = dict_list.begin(); iter != dict_list.end(); ++iter) {
+            std::string key_ansi;
+            utf8_to_ansi(iter->first, key_ansi);
+            printf("%4u, key: [ %s ], value: %d.\n", li_index + 1, key_ansi.c_str(), iter->second);
+            li_index++;
+        }
     }
 
     printf("\n");
@@ -197,9 +201,10 @@ inline void writeOutputChunk(std::ofstream & ofs,
     ofs.write(output_chunk.c_str(), writeBlockSize);
 }
 
-int StringReplace(const std::string & dict_file,
+int StringReplace(const std::string & name,
+                  const std::string & dict_file,
                   const std::string & input_file,
-                  const std::string & output_file)
+                  const std::string & in_output_file)
 {
     std::string dict_kv;
     std::size_t dict_filesize = read_dict_file(dict_file, dict_kv);
@@ -207,6 +212,8 @@ int StringReplace(const std::string & dict_file,
         std::cout << "dict_file [ " << dict_file << " ] read failed." << std::endl;
         return -1;
     }
+
+    std::string output_file = splicing_file_name(in_output_file, name);
 
     std::vector<std::pair<std::string, int>> dict_list;
     preprocessing_dict_file(dict_kv, dict_list);
@@ -266,7 +273,7 @@ int StringReplace(const std::string & dict_file,
         std::string output_chunk;
 
         input_chunk.resize(kReadChunkSize + kPageSize);
-        output_chunk.resize(kWriteBlockSize + kReadChunkSize + kPageSize);
+        output_chunk.resize(kWriteBlockSize + kReadChunkSize * 2 + kPageSize);
 
         std::size_t input_offset = 0;
         std::size_t writeBufSize = 0;

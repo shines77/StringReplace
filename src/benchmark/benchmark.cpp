@@ -125,13 +125,20 @@ void benchmark(const std::string & dict_file,
                const std::string & output_file)
 {
     test::StopWatch sw;
+    double elapsedTime;
 
     sw.start();
-    //strstr_bench::StringReplace(dict_file, input_file, output_file);
-    darts_bench::StringReplace(dict_file, input_file, output_file);
+    strstr_bench::StringReplace("strstr", dict_file, input_file, output_file);
     sw.stop();
 
-    double elapsedTime = sw.getMillisec();
+    elapsedTime = sw.getMillisec();
+    printf("elapsed time: %0.2f ms\n\n", elapsedTime);
+
+    sw.start();
+    darts_bench::StringReplace("darts", dict_file, input_file, output_file);
+    sw.stop();
+
+    elapsedTime = sw.getMillisec();
     printf("elapsed time: %0.2f ms\n\n", elapsedTime);
 }
 
@@ -184,9 +191,6 @@ int main(int argc, char * argv[])
         input_file = default_input_file;
         output_file = default_output_file;
     }
-
-    darts_bench::AcTire_test();
-    //darts_bench::StringReplace(dict_file, input_file, output_file);
 
     benchmark(dict_file, input_file, output_file);
 

@@ -37,6 +37,8 @@
 
 namespace strstr_bench {
 
+static const bool kShowKeyValueList = false;
+
 inline int string_compare(const std::string & key1, const std::string & key2)
 {
     std::size_t key_len1 = key1.size();
@@ -126,12 +128,14 @@ void preprocessing_dict_file(const std::string & dict_kv,
             break;
     } while (1);
 
-    int li_index = 0;
-    for (auto iter = dict_list.begin(); iter != dict_list.end(); ++iter) {
-        std::string key_ansi;
-        utf8_to_ansi(iter->first, key_ansi);
-        printf("%4u, key: [ %s ], value: %d.\n", li_index + 1, key_ansi.c_str(), iter->second);
-        li_index++;
+    if (kShowKeyValueList) {
+        int li_index = 0;
+        for (auto iter = dict_list.begin(); iter != dict_list.end(); ++iter) {
+            std::string key_ansi;
+            utf8_to_ansi(iter->first, key_ansi);
+            printf("%4u, key: [ %s ], value: %d.\n", li_index + 1, key_ansi.c_str(), iter->second);
+            li_index++;
+        }
     }
 
     for (auto iter = dict_list.begin(); iter != dict_list.end(); ++iter) {
@@ -319,9 +323,10 @@ inline void writeOutputChunk(std::ofstream & ofs,
     ofs.write(output_chunk.c_str(), writeBlockSize);
 }
 
-int StringReplace(const std::string & dict_file,
+int StringReplace(const std::string & name,
+                  const std::string & dict_file,
                   const std::string & input_file,
-                  const std::string & output_file)
+                  const std::string & in_output_file)
 {
     std::string dict_kv;
     std::size_t dict_filesize = read_dict_file(dict_file, dict_kv);
@@ -329,6 +334,8 @@ int StringReplace(const std::string & dict_file,
         std::cout << "dict_file [ " << dict_file << " ] read failed." << std::endl;
         return -1;
     }
+
+    std::string output_file = splicing_file_name(in_output_file, name);
 
     std::list<std::pair<std::string, int>> dict_list;
     std::vector<std::pair<std::string, int>> dict_table;

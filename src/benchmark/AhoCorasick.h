@@ -39,6 +39,8 @@
 namespace darts_bench {
 
 //
+// See: https://zhuanlan.zhihu.com/p/368184958 (KMP, Trie, DFA, AC-Auto, very clear)
+//
 // See: https://zhuanlan.zhihu.com/p/137614862
 // See: https://www.zhihu.com/question/352900751
 // See: https://nark.cc/p/?p=1453
@@ -251,7 +253,9 @@ public:
     }
 
     //
-    // See: https://zhuanlan.zhihu.com/p/80325757
+    // See: https://zhuanlan.zhihu.com/p/80325757 (The picture of the article is good, and the code is concise and clear.)
+    // See: https://juejin.cn/post/6844903635130777614 (The DFA diagram drawing is nice.)
+    // See: https://zhuanlan.zhihu.com/p/191644920 (The code is a little similar to Article 1.)
     //
     template <typename T>
     bool search(const T * first, const T * last, MatchInfo & matchInfo) {
