@@ -102,6 +102,127 @@ struct ValueType {
     }
 };
 
+namespace StrUtils {
+
+///////////////////////////////////////////////////////////////////////////////
+//
+// Find
+//
+///////////////////////////////////////////////////////////////////////////////
+
+template <typename T>
+static inline
+T * find(const T * first, const T * last, T token)
+{
+    while (first < last) {
+        if (*first != token)
+            ++first;
+        else
+            return (T *)first;
+    }
+    return nullptr;
+}
+
+template <typename T>
+static inline
+std::size_t find(const T * first, const T * last, T token, std::size_t offset)
+{
+    const T * cur = first + offset;
+    while (cur < last) {
+        if (*cur != token)
+            ++cur;
+        else
+            return std::size_t(cur - first);
+    }
+    return std::string::npos;
+}
+
+static inline
+char * findp(const std::string & text, char token,
+             std::size_t offset = 0,
+             std::size_t limit = (std::size_t)-1)
+{
+    assert(offset < text.size());
+    assert(limit <= text.size());
+    const char * first = text.c_str() + offset;
+    const char * last = text.c_str() + ((limit == (std::size_t)-1) ? text.size() : limit);
+    return find(first, last, token);
+}
+
+static inline
+std::size_t find(const std::string & text, char token,
+                 std::size_t offset = 0,
+                 std::size_t limit = (std::size_t)-1)
+{
+    assert(offset < text.size());
+    assert(limit <= text.size());
+    const char * first = text.c_str();
+    const char * last = text.c_str() + ((limit == (std::size_t)-1) ? text.size() : limit);
+    return find(first, last, token, offset);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+//
+// Reverse Find
+//
+///////////////////////////////////////////////////////////////////////////////
+
+template <typename T>
+static inline
+T * rfind(const T * first, const T * last, T token)
+{
+    --last;
+    while (last >= first) {
+        if (*last != token)
+            --last;
+        else
+            return (T *)last;
+    }
+    return nullptr;
+}
+
+template <typename T>
+static inline
+std::size_t rfind(const T * first, const T * last, T token, std::size_t offset)
+{
+    const T * cur = last - offset;
+    --cur;
+    while (cur >= first) {
+        if (*cur != token)
+            --cur;
+        else
+            return std::size_t(cur - first);
+    }
+    return std::string::npos;
+}
+
+static inline
+char * rfindp(const std::string & text, char token,
+              std::size_t offset = 0,
+              std::size_t limit = 0)
+{
+    assert(offset <= text.size());
+    assert(limit <= text.size());
+    const char * first = text.c_str() + limit;
+    const char * last = text.c_str() + offset;
+    return rfind(first, last, token);
+}
+
+static inline
+std::size_t rfind(const std::string & text, char token,
+                  std::size_t offset = 0,
+                  std::size_t limit = 0)
+{
+    assert(offset <= text.size());
+    assert(limit <= text.size());
+    const char * first = text.c_str() + limit;
+    const char * last = text.c_str() + offset;
+
+    return rfind(first, last, token, 0);
+}
+
+}; // StrUtils
+
 void utf8_to_ansi(const std::string & utf_8, std::string & ansi)
 {
 #ifdef _MSC_VER

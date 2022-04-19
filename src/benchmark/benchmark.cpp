@@ -134,6 +134,8 @@ void benchmark(const std::string & dict_file,
     elapsedTime = sw.getMillisec();
     printf("elapsed time: %0.2f ms\n\n", elapsedTime);
 
+    printf("\n");
+
     sw.start();
     darts_bench::StringReplace("darts", dict_file, input_file, output_file);
     sw.stop();

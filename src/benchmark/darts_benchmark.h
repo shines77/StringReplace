@@ -70,39 +70,38 @@ void preprocessing_dict_file(const std::string & dict_kv,
     std::size_t last_pos = 0;
     do {
         std::size_t next_pos = dict_kv.find_first_of('\n', last_pos);
-        if (next_pos != std::string::npos) {
-Find_KV:
-            std::size_t sep_pos = find_kv_separator(dict_kv, last_pos, next_pos, '\t');
-            if (sep_pos != std::string::npos) {
-                std::string key, value;
-                std::size_t key_len = sep_pos - last_pos;
-                key.resize(key_len);
-                dict_kv.copy(&key[0], key_len, last_pos);
+        if (next_pos == std::string::npos)
+            next_pos = total_size;
+
+        std::size_t sep_pos = find_kv_separator(dict_kv, last_pos, next_pos, '\t');
+        if (sep_pos != std::string::npos) {
+            std::string key, value;
+            std::size_t key_len = sep_pos - last_pos;
+            key.resize(key_len);
+            dict_kv.copy(&key[0], key_len, last_pos);
 #if 0
-                std::size_t value_len = next_pos - (sep_pos + 1);
-                value.resize(value_len);
-                dict_kv.copy(&value[0], value_len, sep_pos + 1);
+            std::size_t value_len = next_pos - (sep_pos + 1);
+            value.resize(value_len);
+            dict_kv.copy(&value[0], value_len, sep_pos + 1);
 
-                std::string key_ansi;
-                utf8_to_ansi(key, key_ansi);
+            std::string key_ansi;
+            utf8_to_ansi(key, key_ansi);
 
-                std::string value_ansi;
-                utf8_to_ansi(value, value_ansi);
-                printf("%4u, key: [ %s ], value: [ %s ].\n", kv_index + 1, key_ansi.c_str(), value_ansi.c_str());
+            std::string value_ansi;
+            utf8_to_ansi(value, value_ansi);
+            printf("%4u, key: [ %s ], value: [ %s ].\n", kv_index + 1, key_ansi.c_str(), value_ansi.c_str());
 #endif
-                int value_type = ValueType::parseValueType(dict_kv, sep_pos + 1, next_pos);
+            int value_type = ValueType::parseValueType(dict_kv, sep_pos + 1, next_pos);
 
-                dict_list.push_back(std::make_pair(key, value_type));
-            }
-            last_pos = next_pos + 1;
+            dict_list.push_back(std::make_pair(key, value_type));
+
             kv_index++;
-        } else {
-            if (next_pos < total_size) {
-                next_pos = total_size;
-                goto Find_KV;
-            }
-            else break;
         }
+
+        // Next line
+        last_pos = next_pos + 1;
+        if (next_pos == total_size)
+            break;
     } while (1);
 
     if (kShowKeyValueList) {
@@ -115,7 +114,9 @@ Find_KV:
         }
     }
 
-    printf("\n");
+    if (kShowKeyValueList) {
+        printf("\n");
+    }
 }
 
 std::size_t replaceInputChunkText(AcTrie<char> & acTrie,
@@ -134,12 +135,11 @@ std::size_t replaceInputChunkText(AcTrie<char> & acTrie,
     uint8_t * line_last;
 
     while (line_first < input_end) {
-        std::size_t newline = input_chunk.find_first_of('\n', offset);
-        if (newline == std::string::npos)
-            newline = input_chunk_size;
+        //std::size_t newline = input_chunk.find_first_of('\n', offset);
+        line_last = StrUtils::find(line_first, input_end, uint8_t('\n'));
+        if (line_last == nullptr)
+            line_last = input_end;
 
-        line_first = (uint8_t *)input_chunk.c_str() + offset;
-        line_last = (uint8_t *)input_chunk.c_str() + newline;
         AcTrie<char>::MatchInfo matchInfo;
         while (line_first < line_last) {
             bool matched = acTrie.search(line_first, line_last, matchInfo);
@@ -183,8 +183,8 @@ std::size_t replaceInputChunkText(AcTrie<char> & acTrie,
         }
 #endif
         // Next line
-        offset = newline + 1;
-        if (newline != input_chunk_size)
+        line_first = line_last + 1;
+        if (line_last != input_end)
             *output++ = '\n';
         else
             break;
@@ -288,7 +288,8 @@ int StringReplace(const std::string & name,
 #endif
                 std::size_t input_chunk_last;
                 std::size_t actualInputChunkBytes = input_offset + totalReadBytes;
-                std::size_t lastNewLinePos = input_chunk.find_last_of('\n', actualInputChunkBytes - 1);
+                //std::size_t lastNewLinePos = input_chunk.find_last_of('\n', actualInputChunkBytes - 1);
+                std::size_t lastNewLinePos = StrUtils::rfind(input_chunk, '\n', actualInputChunkBytes);
                 if (lastNewLinePos == std::string::npos)
                     input_chunk_last = actualInputChunkBytes;
                 else

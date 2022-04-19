@@ -118,9 +118,9 @@ void preprocessing_dict_file(const std::string & dict_kv,
             int value_type = ValueType::parseValueType(dict_kv, sep_pos + 1, next_pos);
 
             int index = insert_kv_list(dict_list, key, value_type);
-        }
 
-        kv_index++;
+            kv_index++;
+        }
 
         // Next line
         last_pos = next_pos + 1;
@@ -142,7 +142,9 @@ void preprocessing_dict_file(const std::string & dict_kv,
         dict_table.push_back(std::make_pair(iter->first, iter->second));
     }
 
-    printf("\n");
+    if (kShowKeyValueList) {
+        printf("\n");
+    }
 }
 
 std::size_t replaceInputChunkText(std::vector<std::pair<std::string, int>> & dict_table,
@@ -391,7 +393,8 @@ int StringReplace(const std::string & name,
 #endif
                 std::size_t input_chunk_last;
                 std::size_t actualInputChunkBytes = input_offset + totalReadBytes;
-                std::size_t lastNewLinePos = input_chunk.find_last_of('\n', actualInputChunkBytes - 1);
+                //std::size_t lastNewLinePos = input_chunk.find_last_of('\n', actualInputChunkBytes - 1);
+                std::size_t lastNewLinePos = StrUtils::rfind(input_chunk, '\n', actualInputChunkBytes);
                 if (lastNewLinePos == std::string::npos)
                     input_chunk_last = actualInputChunkBytes;
                 else
