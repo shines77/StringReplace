@@ -64,6 +64,8 @@ public:
     #pragma pack(push, 1)
 
     struct State {
+        typedef std::map<std::uint32_t, identifier_t> map_type;
+
         identifier_t                            fail_link;
         union {
             struct {
@@ -76,6 +78,11 @@ public:
     };
 
     struct MatchInfo {
+        std::uint32_t last;
+        std::uint32_t pattern_id;
+    };
+
+    struct MatchInfo2 {
         std::uint32_t first;
         std::uint32_t last;
         std::uint32_t pattern_id;
@@ -213,20 +220,114 @@ public:
     }
 
     template <typename T>
+    inline
+    bool search_suffix(identifier_t root, const T * first, const T * last, MatchInfo & matchInfo) {
+        bool matched = false;
+        uchar_type * text_first = (uchar_type *)first;
+        uchar_type * text_last = (uchar_type *)last;
+        uchar_type * text = text_first;
+        assert(text_first <= text_last);
+
+        identifier_t cur = root;
+        while (text < text_last) {
+            std::uint32_t lable = (std::uint32_t)*text;
+            assert(this->is_valid_id(cur));
+            State & cur_state = this->states_[cur];
+            auto iter = cur_state.next_link.find(lable);
+            if (iter != cur_state.next_link.end()) {
+                cur = iter->second;
+                text++;
+            } else {
+                if ((cur != root) && (cur_state.is_final != 0)) {
+                    matchInfo.last       = (std::uint32_t)(text - text_first);
+                    matchInfo.pattern_id = cur_state.pattern_id;
+                    return true;
+                }
+                break;
+            }
+        }
+
+        return matched;
+    }
+
+    //
+    // See: https://zhuanlan.zhihu.com/p/80325757
+    //
+    template <typename T>
     bool search(const T * first, const T * last, MatchInfo & matchInfo) {
         bool matched = false;
         uchar_type * text_first = (uchar_type *)first;
         uchar_type * text_last = (uchar_type *)last;
         uchar_type * text = text_first;
+        assert(text_first <= text_last);
+
+        typedef typename State::map_type::const_iterator const_iterator;
+
+        identifier_t cur = this->root();
+
+        while (text < text_last) {
+            const_iterator iter;
+            bool hasChildren = false;
+            std::uint32_t lable = (std::uint32_t)*text;
+            do {
+                assert(this->is_valid_id(cur));
+                State & cur_state = this->states_[cur];
+                iter = cur_state.next_link.find(lable);
+                hasChildren = (iter != cur_state.next_link.end());
+                if (!hasChildren && (cur != this->root())) {
+                    cur = cur_state.fail_link;
+                } else {
+                    break;
+                }
+            } while (1);
+
+            if (!hasChildren) {
+                cur = this->root();
+                text++;
+            } else {
+                cur = iter->second;
+
+                identifier_t tmp = cur;
+                do {
+                    State & tmp_state = this->states_[tmp];
+                    if (tmp_state.is_final != 0) {
+                        // Matched
+                        matchInfo.last       = (std::uint32_t)(text + 1 - text_first);
+                        matchInfo.pattern_id = tmp_state.pattern_id;
+                        if (tmp_state.next_link.size() != 0) {
+                            // If a suffix exists, match the longest suffix.
+                            MatchInfo matchInfo2;
+                            bool matched2 = this->search_suffix(tmp, text + 1, text_last, matchInfo2);
+                            if (matched2) {
+                                matchInfo.last      += matchInfo2.last;
+                                matchInfo.pattern_id = matchInfo2.pattern_id;
+                            }
+                        }
+                        return true;
+                    }
+                    tmp = tmp_state.fail_link;
+                } while (tmp != this->root());
+                text++;
+            }
+        }
+
+        return matched;
+    }
+
+    template <typename T>
+    bool search2(const T * first, const T * last, MatchInfo2 & matchInfo) {
+        bool matched = false;
+        uchar_type * text_first = (uchar_type *)first;
+        uchar_type * text_last = (uchar_type *)last;
+        uchar_type * text = text_first;
         uchar_type * match_first = text_first;
-        uchar_type * match_last = nullptr;
         assert(text_first <= text_last);
 
         identifier_t cur = this->root();
         while (text < text_last) {
             assert(this->is_valid_id(cur));
             State & cur_state = this->states_[cur];
-            std::uint32_t lable = (std::uint32_t)*text++;
+            std::uint32_t lable = (std::uint32_t)*text;
             auto const & iter = cur_state.next_link.find(lable);
             if (iter == cur_state.next_link.end()) {
                 if (cur_state.is_final == 0) {
@@ -234,14 +335,25 @@ public:
                     if (fail_link == kInvalidLink) {
                         // cur = root
                         cur = this->root();
+                        text++;
                         match_first = text;
                         //break;
                     } else {
-                        if (fail_link == this->root()) {
-                            match_first = text;
-                        }
                         // cur = cur.fail
                         cur = fail_link;
+                        State & cur_fail = this->states_[cur];
+                        if (cur_fail.is_final == 0) {
+                            if (cur == this->root()) {
+                                text++;
+                                match_first = text;
+                            }
+                        } else {
+                            matchInfo.first = (std::uint32_t)(match_first - text_first);
+                            matchInfo.last = (std::uint32_t)(text - 1 - text_first);
+                            matchInfo.pattern_id = cur_fail.pattern_id;
+                            matchInfo.reserve = 0;
+                            return true;
+                        }
                     }
                 } else {
                     matchInfo.first = (std::uint32_t)(match_first - text_first);
@@ -253,6 +365,7 @@ public:
             } else {
                 // cur = cur.next[i]
                 cur = iter->second;
+                text++;
             }
         }
 

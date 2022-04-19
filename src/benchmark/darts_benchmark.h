@@ -140,27 +140,28 @@ std::size_t replaceInputChunkText(AcTrie<char> & acTrie,
         while (line_first < line_last) {
             bool matched = acTrie.search(line_first, line_last, matchInfo);
             if (!matched) {
-                    while (line_first < line_last) {
-                        *output++ = *line_first++;
-                    }
-                    break;
+                while (line_first < line_last) {
+                    *output++ = *line_first++;
+                }
+                break;
             } else {
-                std::size_t match_first = matchInfo.first;
                 std::size_t match_last = matchInfo.last;
                 std::size_t pattern_id = matchInfo.pattern_id;
                 assert(pattern_id < dict_list.size());
+
+                const std::pair<std::string, int> & dict_info = dict_list[pattern_id];
+                const std::string & key = dict_info.first;
+                assert(match_last >= key.size());
+                std::size_t match_first = match_last - key.size();
 
                 uint8_t * line_mid = line_first + match_first;
                 while (line_first < line_mid) {
                     *output++ = *line_first++;
                 }
 
-                const std::pair<std::string, int> & dict_info = dict_list[pattern_id];
-                const std::string & key = dict_info.first;
                 int valueType = dict_info.second;
                 uint8_t * value = (uint8_t *)ValueType::toString(valueType);
                 std::size_t valueLength = ValueType::length(valueType);
-                assert(std::size_t(match_last - match_first) == key.size());
 
                 uint8_t * value_end = value + valueLength;
                 while (value < value_end) {
@@ -172,7 +173,11 @@ std::size_t replaceInputChunkText(AcTrie<char> & acTrie,
         }
 
         line_no++;
-
+#ifdef _DEBUG
+        if (line_no == 430) {
+            line_no = line_no;
+        }
+#endif
         // Next line
         offset = newline + 1;
         if (newline != input_chunk_size)
