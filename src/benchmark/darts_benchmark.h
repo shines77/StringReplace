@@ -299,16 +299,17 @@ int StringReplace(const std::string & name,
 #if defined(_MSC_VER)
                 //std::size_t lastNewLinePos = input_chunk.find_last_of('\n', actualInputChunkBytes - 1);
                 std::size_t lastNewLinePos = StrUtils::rfind(input_chunk, '\n', actualInputChunkBytes);
-#else
-                size_t length = (size_t)actualInputChunkBytes;
-                const char * last_newline = (const char *)memrchr(input_chunk.c_str(), '\n', length);
-                std::size_t lastNewLinePos = (last_newline == nullptr) ? actualInputChunkBytes
-                                           : (last_newline - input_chunk.c_str() + 1);
-#endif
                 if (lastNewLinePos == std::string::npos)
                     input_chunk_last = actualInputChunkBytes;
                 else
                     input_chunk_last = lastNewLinePos + 1;
+#else
+                size_t length = (size_t)actualInputChunkBytes;
+                const char * last_newline = (const char *)memrchr(input_chunk.c_str(), '\n', length);
+                input_chunk_last = (last_newline == nullptr) ? actualInputChunkBytes
+                                 : (last_newline - input_chunk.c_str() + 1);
+#endif
+
 
                 //char saveChar = input_chunk[input_chunk_last];
                 //input_chunk[input_chunk_last] = '\0';
