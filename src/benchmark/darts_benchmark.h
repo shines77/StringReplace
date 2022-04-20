@@ -135,8 +135,13 @@ std::size_t replaceInputChunkText(AcTrie<char> & acTrie,
     uint8_t * line_last;
 
     while (line_first < input_end) {
+#if 0
         //std::size_t newline = input_chunk.find_first_of('\n', offset);
         line_last = StrUtils::find(line_first, input_end, uint8_t('\n'));
+#else
+        size_t length = (size_t)(input_end - line_first) * sizeof(uint8_t);
+        line_last = (uint8_t *)std::memchr(line_first, '\n', length);
+#endif
         if (line_last == nullptr)
             line_last = input_end;
 
@@ -291,8 +296,15 @@ int StringReplace(const std::string & name,
 #endif
                 std::size_t input_chunk_last;
                 std::size_t actualInputChunkBytes = input_offset + totalReadBytes;
+#if defined(_MSC_VER)
                 //std::size_t lastNewLinePos = input_chunk.find_last_of('\n', actualInputChunkBytes - 1);
                 std::size_t lastNewLinePos = StrUtils::rfind(input_chunk, '\n', actualInputChunkBytes);
+#else
+                size_t length = (size_t)actualInputChunkBytes;
+                const char * last_newline = (const char *)memrchr(input_chunk.c_str(), '\n', length);
+                std::size_t lastNewLinePos = (last_newline == nullptr) ? actualInputChunkBytes
+                                           : (last_newline - input_chunk.c_str() + 1);
+#endif
                 if (lastNewLinePos == std::string::npos)
                     input_chunk_last = actualInputChunkBytes;
                 else
