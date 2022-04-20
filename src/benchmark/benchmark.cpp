@@ -127,6 +127,7 @@ void benchmark(const std::string & dict_file,
     test::StopWatch sw;
     double elapsedTime;
 
+#if 0
     sw.start();
     strstr_bench::StringReplace("strstr", dict_file, input_file, output_file);
     sw.stop();
@@ -135,6 +136,7 @@ void benchmark(const std::string & dict_file,
     printf("elapsed time: %0.2f ms\n\n", elapsedTime);
 
     printf("\n");
+#endif
 
     sw.start();
     darts_bench::StringReplace("darts", dict_file, input_file, output_file);

@@ -222,7 +222,6 @@ public:
     }
 
     template <typename T>
-    inline
     bool search_suffix(identifier_t root, const T * first, const T * last, MatchInfo & matchInfo) {
         bool matched = false;
         uchar_type * text_first = (uchar_type *)first;
@@ -298,8 +297,19 @@ public:
                         // Matched
                         matchInfo.last       = (std::uint32_t)(text + 1 - text_first);
                         matchInfo.pattern_id = tmp_state.pattern_id;
+                        if (tmp != cur) {
+                            // If current full prefix is matched, judge the continous suffixs has some chars is matched?
+                            // If it's have any chars is matched, it would be the longest matched suffix.
+                            MatchInfo matchInfo1;
+                            bool matched1 = this->search_suffix(cur, text + 1, text_last, matchInfo1);
+                            if (matched1) {
+                                matchInfo.last      += matchInfo1.last;
+                                matchInfo.pattern_id = matchInfo1.pattern_id;
+                                return true;
+                            }
+                        }
                         if (tmp_state.next_link.size() != 0) {
-                            // If a suffix exists, match the longest suffix.
+                            // If a sub suffix exists, match the continous longest suffixs.
                             MatchInfo matchInfo2;
                             bool matched2 = this->search_suffix(tmp, text + 1, text_last, matchInfo2);
                             if (matched2) {

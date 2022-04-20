@@ -155,6 +155,9 @@ std::size_t replaceInputChunkText(AcTrie<char> & acTrie,
 
                 const std::pair<std::string, int> & dict_info = dict_list[pattern_id];
                 const std::string & key = dict_info.first;
+                std::string ansi_key;
+                utf8_to_ansi(key, ansi_key);
+
                 assert(match_last >= key.size());
                 std::size_t match_first = match_last - key.size();
 
