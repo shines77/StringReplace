@@ -222,6 +222,7 @@ public:
     }
 
     template <typename T>
+    inline
     bool search_suffix(identifier_t root, const T * first, const T * last, MatchInfo & matchInfo) {
         bool matched = false;
         uchar_type * text_first = (uchar_type *)first;
