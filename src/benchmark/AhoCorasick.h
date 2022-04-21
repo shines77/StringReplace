@@ -1,6 +1,6 @@
 
-#ifndef AHO_CORASICK_AUTO_H
-#define AHO_CORASICK_AUTO_H
+#ifndef AHO_CORASICK_AUTO_V1_H
+#define AHO_CORASICK_AUTO_V1_H
 
 #if defined(_MSC_VER) && (_MSC_VER >= 1020)
 #pragma once
@@ -36,7 +36,7 @@
 #include "benchmark.h"
 #include "win_iconv.h"
 
-namespace darts_bench {
+namespace v1 {
 
 //
 // See: https://zhuanlan.zhihu.com/p/368184958 (KMP, Trie, DFA, AC-Auto, very clear)
@@ -45,13 +45,14 @@ namespace darts_bench {
 // See: https://www.zhihu.com/question/352900751
 // See: https://nark.cc/p/?p=1453
 //
-template <typename CharTy>
+template <typename CharT>
 class AcTrie {
 public:
-    typedef AcTrie<CharTy>                              this_type;
-    typedef CharTy                                      char_type;
-    typedef typename std::make_signed<CharTy>::type     schar_type;
-    typedef typename std::make_unsigned<CharTy>::type   uchar_type;
+    typedef AcTrie<CharT>                                   this_type;
+    typedef CharT                                           o_char_type;
+    typedef typename detail::char_trait<CharT>::NoSigned    char_type;
+    typedef typename detail::char_trait<CharT>::Signed      schar_type;
+    typedef typename detail::char_trait<CharT>::Unsigned    uchar_type;
 
     typedef std::size_t         size_type;
     typedef std::uint32_t       identifier_t;
@@ -129,15 +130,14 @@ public:
         return kRootLink;
     }
 
-    template <typename T>
-    bool insert(const T * in_pattern, size_type length, std::uint32_t id) {
+    bool insert(const uchar_type * in_pattern, size_type length, std::uint32_t id) {
         const uchar_type * pattern = (const uchar_type *)in_pattern;
 
         identifier_t cur = this->root();
         assert(this->is_valid_id(cur));
 
         for (size_type i = 0; i < length; i++) {
-            std::uint32_t label = *pattern++;
+            std::uint32_t label = (uchar_type)*pattern++;
             State & cur_state = this->states_[cur];
             auto iter = cur_state.children.find(label);
             if (likely(iter == cur_state.children.end())) {
@@ -171,6 +171,14 @@ public:
         } else {
             return false;
         }
+    }
+
+    bool insert(const char_type * pattern, size_type length, std::uint32_t id) {
+        return this->insert((const uchar_type *)pattern, length, id);
+    }
+
+    bool insert(const schar_type * pattern, size_type length, std::uint32_t id) {
+        return this->insert((const uchar_type *)pattern, length, id);
     }
 
     void build() {
@@ -221,9 +229,9 @@ public:
         }
     }
 
-    template <typename T>
     inline
-    bool search_suffix(identifier_t root, const T * first, const T * last, MatchInfo & matchInfo) {
+    bool search_suffix(identifier_t root, const uchar_type * first,
+                       const uchar_type * last, MatchInfo & matchInfo) {
         bool matched = false;
         uchar_type * text_first = (uchar_type *)first;
         uchar_type * text_last = (uchar_type *)last;
@@ -252,13 +260,24 @@ public:
         return matched;
     }
 
+    inline
+    bool search_suffix(identifier_t root, const char_type * first,
+                       const char_type * last, MatchInfo & matchInfo) {
+        return this->search_suffix(root, (const uchar_type *)first, (const uchar_type *)last, matchInfo);
+    }
+
+    inline
+    bool search_suffix(identifier_t root, const schar_type * first,
+                       const schar_type * last, MatchInfo & matchInfo) {
+        return this->search_suffix(root, (const uchar_type *)first, (const uchar_type *)last, matchInfo);
+    }
+
     //
     // See: https://zhuanlan.zhihu.com/p/80325757 (The picture of the article is good, and the code is concise and clear.)
     // See: https://juejin.cn/post/6844903635130777614 (The DFA diagram drawing is nice.)
     // See: https://zhuanlan.zhihu.com/p/191644920 (The code is a little similar to Article 1.)
     //
-    template <typename T>
-    bool search(const T * first, const T * last, MatchInfo & matchInfo) {
+    bool search(const uchar_type * first, const uchar_type * last, MatchInfo & matchInfo) {
         uchar_type * text_first = (uchar_type *)first;
         uchar_type * text_last = (uchar_type *)last;
         uchar_type * text = text_first;
@@ -329,6 +348,14 @@ public:
         return matched;
     }
 
+    bool search(const char_type * first, const char_type * last, MatchInfo & matchInfo) {
+        return this->search((const uchar_type *)first, (const uchar_type *)last, matchInfo);
+    }
+
+    bool search(const schar_type * first, const schar_type * last, MatchInfo & matchInfo) {
+        return this->search((const uchar_type *)first, (const uchar_type *)last, matchInfo);
+    }
+
 private:
     void create_root() {
         assert(this->states_.size() == 0);
@@ -347,6 +374,6 @@ private:
     }
 };
 
-} // namespace darts_bench
+} // namespace v1
 
-#endif // AHO_CORASICK_AUTO_H
+#endif // AHO_CORASICK_AUTO_V1_H

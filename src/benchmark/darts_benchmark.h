@@ -45,21 +45,6 @@ namespace darts_bench {
 
 static const bool kShowKeyValueList = false;
 
-void AcTire_test()
-{
-    AcTrie<char> ac_trie;
-    ac_trie.insert("abcd", 4, 0);
-    ac_trie.insert("abef", 4, 1);
-    ac_trie.insert("ghjsdasf", 8, 2);
-    ac_trie.insert("Hello", 5, 3);
-    ac_trie.insert("Hello World", 11, 4);
-    ac_trie.insert("test", 4, 5);
-
-    ac_trie.build();
-
-    printf("ac_trie.state(30).is_final = %u\n\n", ac_trie.state(30).is_final);
-}
-
 void preprocessing_dict_file(const std::string & dict_kv,
                              std::vector<std::pair<std::string, int>> & dict_list)
 {
@@ -119,7 +104,8 @@ void preprocessing_dict_file(const std::string & dict_kv,
     }
 }
 
-std::size_t replaceInputChunkText(AcTrie<char> & acTrie,
+template <typename AcTrieT>
+std::size_t replaceInputChunkText(AcTrieT & acTrie,
                                   std::vector<std::pair<std::string, int>> & dict_list,
                                   std::string & input_chunk, std::size_t input_chunk_size,
                                   std::string & output_chunk, std::size_t output_offset)
@@ -128,7 +114,6 @@ std::size_t replaceInputChunkText(AcTrie<char> & acTrie,
     uint8_t * output = (uint8_t *)output_chunk.c_str() + output_offset;
     uint8_t * output_start = output;
 
-    bool last_line_processed = false;
     std::size_t line_no = 0;
     std::size_t offset = 0;
     uint8_t * line_first = (uint8_t *)input_chunk.c_str() + offset;
@@ -145,7 +130,7 @@ std::size_t replaceInputChunkText(AcTrie<char> & acTrie,
         if (line_last == nullptr)
             line_last = input_end;
 
-        AcTrie<char>::MatchInfo matchInfo;
+        typename AcTrieT::MatchInfo matchInfo;
         while (line_first < line_last) {
             bool matched = acTrie.search(line_first, line_last, matchInfo);
             if (!matched) {
@@ -209,6 +194,7 @@ inline void writeOutputChunk(std::ofstream & ofs,
     ofs.write(output_chunk.c_str(), writeBlockSize);
 }
 
+template <typename AcTrieT>
 int StringReplace(const std::string & name,
                   const std::string & dict_file,
                   const std::string & input_file,
@@ -234,7 +220,7 @@ int StringReplace(const std::string & name,
 
     sw.start();
 
-    AcTrie<char> ac_trie;
+    AcTrieT ac_trie;
     std::uint32_t index = 0;
     for (auto iter = dict_list.begin(); iter != dict_list.end(); ++iter) {
         const std::string & key = iter->first;
@@ -249,8 +235,6 @@ int StringReplace(const std::string & name,
     double elapsedTime = sw.getMillisec();
 
     printf("ac_trie.max_state_id() = %u\n", (uint32_t)ac_trie.max_state_id());
-    printf("ac_trie.state(30).is_final = %u\n\n", ac_trie.state(30).is_final);
-
     printf("ac_trie build elapsed time: %0.2f ms\n\n", elapsedTime);
 
 #if USE_READ_WRITE_STATISTICS
@@ -314,7 +298,7 @@ int StringReplace(const std::string & name,
                 //char saveChar = input_chunk[input_chunk_last];
                 //input_chunk[input_chunk_last] = '\0';
                 std::size_t output_offset = writeBufSize;
-                std::size_t outputBytes = replaceInputChunkText(
+                std::size_t outputBytes = replaceInputChunkText<AcTrieT>(
                                                 ac_trie, dict_list,
                                                 input_chunk, input_chunk_last,
                                                 output_chunk, output_offset);

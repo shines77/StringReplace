@@ -65,6 +65,7 @@
 
 #include "win_iconv.h"
 #include "strstr_benchmark.h"
+#include "ac_benchmark.h"
 #include "darts_benchmark.h"
 
 using namespace StringMatch;
@@ -141,7 +142,7 @@ void benchmark(const std::string & dict_file,
 #endif
 
     sw.start();
-    darts_bench::StringReplace("darts", dict_file, input_file, output_file);
+    ac_bench::StringReplace<v1::AcTrie<char>>("ac", dict_file, input_file, output_file);
     sw.stop();
 
     elapsedTime = sw.getMillisec();
