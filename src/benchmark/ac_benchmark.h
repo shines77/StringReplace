@@ -32,7 +32,7 @@
 
 #include "benchmark.h"
 #include "win_iconv.h"
-#include "AhoCorasick.h"
+#include "AhoCorasick_v1.h"
 
 //
 // See: https://www.cnblogs.com/zhangchaoyang/articles/4508266.html
