@@ -141,12 +141,23 @@ void benchmark(const std::string & dict_file,
     printf("\n");
 #endif
 
+#if 1
     sw.start();
-    ac_bench::StringReplace<v1::AcTrie<char>>("ac", dict_file, input_file, output_file);
+    ac_bench::StringReplace<v1::AcTrie<char>>("ac1", dict_file, input_file, output_file);
     sw.stop();
 
     elapsedTime = sw.getMillisec();
     printf("elapsed time: %0.2f ms\n\n", elapsedTime);
+#endif
+
+#if 1
+    sw.start();
+    ac_bench::StringReplace<v2::AcTrie<char>>("ac2", dict_file, input_file, output_file);
+    sw.stop();
+
+    elapsedTime = sw.getMillisec();
+    printf("elapsed time: %0.2f ms\n\n", elapsedTime);
+#endif
 }
 
 void print_arch_type()
@@ -198,6 +209,11 @@ int main(int argc, char * argv[])
         input_file = default_input_file;
         output_file = default_output_file;
     }
+
+#if 0
+    ac_bench::v1_AcTire_test();
+    ac_bench::v1_AcTireW_test();
+#endif
 
     benchmark(dict_file, input_file, output_file);
 

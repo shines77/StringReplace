@@ -162,7 +162,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\src\benchmark\ac_benchmark.h" />
-    <ClInclude Include="..\..\..\src\benchmark\AhoCorasick.h" />
+    <ClInclude Include="..\..\..\src\benchmark\AhoCorasick_v1.h" />
+    <ClInclude Include="..\..\..\src\benchmark\AhoCorasick_v2.h" />
     <ClInclude Include="..\..\..\src\benchmark\benchmark.h" />
     <ClInclude Include="..\..\..\src\benchmark\darts_benchmark.h" />
     <ClInclude Include="..\..\..\src\benchmark\strstr_benchmark.h" />

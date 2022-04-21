@@ -30,10 +30,13 @@
     <ClInclude Include="..\..\..\src\benchmark\darts_benchmark.h">
       <Filter>src\benchmark</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\src\benchmark\AhoCorasick.h">
+    <ClInclude Include="..\..\..\src\benchmark\ac_benchmark.h">
       <Filter>src\benchmark</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\src\benchmark\ac_benchmark.h">
+    <ClInclude Include="..\..\..\src\benchmark\AhoCorasick_v1.h">
+      <Filter>src\benchmark</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\src\benchmark\AhoCorasick_v2.h">
       <Filter>src\benchmark</Filter>
     </ClInclude>
   </ItemGroup>

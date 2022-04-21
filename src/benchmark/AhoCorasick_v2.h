@@ -1,6 +1,6 @@
 
-#ifndef AHO_CORASICK_AUTO_V1_H
-#define AHO_CORASICK_AUTO_V1_H
+#ifndef AHO_CORASICK_AUTO_V2_H
+#define AHO_CORASICK_AUTO_V2_H
 
 #if defined(_MSC_VER) && (_MSC_VER >= 1020)
 #pragma once
@@ -36,7 +36,7 @@
 #include "benchmark.h"
 #include "win_iconv.h"
 
-namespace v1 {
+namespace v2 {
 
 //
 // See: https://zhuanlan.zhihu.com/p/368184958 (KMP, Trie, DFA, AC-Auto, very clear)
@@ -244,7 +244,7 @@ public:
             assert(this->is_valid_id(cur));
             State & cur_state = this->states_[cur];
             auto iter = cur_state.children.find(lable);
-            if (iter != cur_state.children.end()) {
+            if (unlikely(iter != cur_state.children.end())) {
                 cur = iter->second;
                 text++;
             } else {
@@ -283,69 +283,80 @@ public:
         uchar_type * text = text_first;
         assert(text_first <= text_last);
 
-        typedef typename State::map_type::const_iterator const_iterator;
-
-        identifier_t cur = this->root();
+        identifier_t root = this->root();
+        identifier_t cur = root;
         bool matched = false;
 
         while (text < text_last) {
-            const_iterator iter;
-            bool hasChildren = false;
+MatchNextLabel:
             std::uint32_t lable = (uchar_type)*text;
-            do {
+            if (unlikely(cur == root)) {
                 assert(this->is_valid_id(cur));
                 State & cur_state = this->states_[cur];
-                iter = cur_state.children.find(lable);
-                hasChildren = (iter != cur_state.children.end());
-                if (!hasChildren && (cur != this->root())) {
-                    cur = cur_state.fail_link;
+                auto iter = cur_state.children.find(lable);
+                if (likely(iter != cur_state.children.end())) {
+                    cur = iter->second;
                 } else {
-                    break;
+                    text++;
+                    continue;
                 }
-            } while (1);
-
-            if (!hasChildren) {
-                cur = this->root();
-                text++;
             } else {
-                cur = iter->second;
-
-                identifier_t node = cur;
-                assert(node != this->root());
-
                 do {
-                    State & node_state = this->states_[node];
-                    if (node_state.is_final != 0) {
-                        // Matched
-                        matchInfo.last_pos   = (std::uint32_t)(text + 1 - text_first);
-                        matchInfo.pattern_id = node_state.pattern_id;
-                        if (node != cur) {
-                            // If current full prefix is matched, judge the continous suffixs has some chars is matched?
-                            // If it's have any chars is matched, it would be the longest matched suffix.
-                            MatchInfo matchInfo1;
-                            bool matched1 = this->search_suffix(cur, text + 1, text_last, matchInfo1);
-                            if (matched1) {
-                                matchInfo.last_pos  += matchInfo1.last_pos;
-                                matchInfo.pattern_id = matchInfo1.pattern_id;
-                                return true;
-                            }
+                    assert(this->is_valid_id(cur));
+                    State & cur_state = this->states_[cur];
+                    auto iter = cur_state.children.find(lable);
+                    if (likely(iter == cur_state.children.end())) {
+                        if (likely(cur != root)) {
+                            cur = cur_state.fail_link;
+                        } else {
+                            text++;
+                            if (text < text_last)
+                                goto MatchNextLabel;
+                            else
+                                return matched;
                         }
-                        if (node_state.children.size() != 0) {
-                            // If a sub suffix exists, match the continous longest suffixs.
-                            MatchInfo matchInfo2;
-                            bool matched2 = this->search_suffix(node, text + 1, text_last, matchInfo2);
-                            if (matched2) {
-                                matchInfo.last_pos  += matchInfo2.last_pos;
-                                matchInfo.pattern_id = matchInfo2.pattern_id;
-                            }
-                        }
-                        return true;
+                    } else {
+                        cur = iter->second;
+                        break;
                     }
-                    node = node_state.fail_link;
-                } while (node != this->root());
-
-                text++;
+                } while (1);
             }
+
+            identifier_t node = cur;
+            assert(node != root);
+
+            do {
+                State & node_state = this->states_[node];
+                if (unlikely(node_state.is_final != 0)) {
+                    // Matched
+                    matchInfo.last_pos   = (std::uint32_t)(text + 1 - text_first);
+                    matchInfo.pattern_id = node_state.pattern_id;
+                    if (node != cur) {
+                        // If current full prefix is matched, judge the continous suffixs has some chars is matched?
+                        // If it's have any chars is matched, it would be the longest matched suffix.
+                        MatchInfo matchInfo1;
+                        bool matched1 = this->search_suffix(cur, text + 1, text_last, matchInfo1);
+                        if (matched1) {
+                            matchInfo.last_pos  += matchInfo1.last_pos;
+                            matchInfo.pattern_id = matchInfo1.pattern_id;
+                            return true;
+                        }
+                    }
+                    if (node_state.children.size() != 0) {
+                        // If a sub suffix exists, match the continous longest suffixs.
+                        MatchInfo matchInfo2;
+                        bool matched2 = this->search_suffix(node, text + 1, text_last, matchInfo2);
+                        if (matched2) {
+                            matchInfo.last_pos  += matchInfo2.last_pos;
+                            matchInfo.pattern_id = matchInfo2.pattern_id;
+                        }
+                    }
+                    return true;
+                }
+                node = node_state.fail_link;
+            } while (node != root);
+
+            text++;
         }
 
         return matched;
@@ -377,6 +388,6 @@ private:
     }
 };
 
-} // namespace v1
+} // namespace v2
 
-#endif // AHO_CORASICK_AUTO_V1_H
+#endif // AHO_CORASICK_AUTO_V2_H

@@ -33,6 +33,7 @@
 #include "benchmark.h"
 #include "win_iconv.h"
 #include "AhoCorasick_v1.h"
+#include "AhoCorasick_v2.h"
 
 //
 // See: https://www.cnblogs.com/zhangchaoyang/articles/4508266.html
@@ -58,6 +59,21 @@ void v1_AcTire_test()
     ac_trie.build();
 
     printf("v1::AcTrie<char>: ac_trie.state(30).is_final = %u\n\n", ac_trie.state(30).is_final);
+}
+
+void v1_AcTireW_test()
+{
+    v1::AcTrie<wchar_t> ac_trie;
+    ac_trie.insert(L"abcd", 4, 0);
+    ac_trie.insert(L"abef", 4, 1);
+    ac_trie.insert(L"ghjsdasf", 8, 2);
+    ac_trie.insert(L"Hello", 5, 3);
+    ac_trie.insert(L"Hello World", 11, 4);
+    ac_trie.insert(L"test", 4, 5);
+
+    ac_trie.build();
+
+    printf("v1::AcTrie<wchar_t>: ac_trie.state(30).is_final = %u\n\n", ac_trie.state(30).is_final);
 }
 
 void preprocessing_dict_file(const std::string & dict_kv,
@@ -345,7 +361,7 @@ int StringReplace(const std::string & name,
                     char saveChar = input_chunk[input_chunk_last];
                     input_chunk[input_chunk_last] = '\0';
                     std::size_t output_offset = writeBufSize;
-                    std::size_t outputBytes = replaceInputChunkText(
+                    std::size_t outputBytes = replaceInputChunkText<AcTrieT>(
                                                     ac_trie, dict_list,
                                                     input_chunk, input_chunk_last,
                                                     output_chunk, output_offset);

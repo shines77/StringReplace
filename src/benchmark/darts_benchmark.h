@@ -330,7 +330,7 @@ int StringReplace(const std::string & name,
                     char saveChar = input_chunk[input_chunk_last];
                     input_chunk[input_chunk_last] = '\0';
                     std::size_t output_offset = writeBufSize;
-                    std::size_t outputBytes = replaceInputChunkText(
+                    std::size_t outputBytes = replaceInputChunkText<AcTrieT>(
                                                     ac_trie, dict_list,
                                                     input_chunk, input_chunk_last,
                                                     output_chunk, output_offset);
