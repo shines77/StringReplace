@@ -48,12 +48,12 @@ static const bool kShowKeyValueList = false;
 void AcTire_test()
 {
     AcTrie<char> ac_trie;
-    ac_trie.appendPattern("abcd", 4, 0);
-    ac_trie.appendPattern("abef", 4, 1);
-    ac_trie.appendPattern("ghjsdasf", 8, 2);
-    ac_trie.appendPattern("Hello", 5, 3);
-    ac_trie.appendPattern("Hello World", 11, 4);
-    ac_trie.appendPattern("test", 4, 5);
+    ac_trie.insert("abcd", 4, 0);
+    ac_trie.insert("abef", 4, 1);
+    ac_trie.insert("ghjsdasf", 8, 2);
+    ac_trie.insert("Hello", 5, 3);
+    ac_trie.insert("Hello World", 11, 4);
+    ac_trie.insert("test", 4, 5);
 
     ac_trie.build();
 
@@ -154,7 +154,7 @@ std::size_t replaceInputChunkText(AcTrie<char> & acTrie,
                 }
                 break;
             } else {
-                std::size_t match_last = matchInfo.last;
+                std::size_t match_last = matchInfo.last_pos;
                 std::size_t pattern_id = matchInfo.pattern_id;
                 assert(pattern_id < dict_list.size());
 
@@ -238,7 +238,7 @@ int StringReplace(const std::string & name,
     std::uint32_t index = 0;
     for (auto iter = dict_list.begin(); iter != dict_list.end(); ++iter) {
         const std::string & key = iter->first;
-        ac_trie.appendPattern(key.c_str(), key.size(), index);
+        ac_trie.insert(key.c_str(), key.size(), index);
         index++;
     };
 

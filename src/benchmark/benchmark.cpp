@@ -90,6 +90,8 @@ using namespace StringMatch;
     if ((str[i] & 0xc0) != 0x80)
         length++;
 
+    Utf-8 encoding Online: https://tool.oschina.net/encode?type=4
+
 *******************************************************************************/
 
 void cpu_warmup(int delayTime)
