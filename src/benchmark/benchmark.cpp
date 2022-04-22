@@ -141,6 +141,8 @@ void benchmark(const std::string & dict_file,
     printf("\n");
 #endif
 
+#ifndef _DEBUG
+
 #if 1
     sw.start();
     ac_bench::StringReplace<v1::AcTrie<char>>("ac1", dict_file, input_file, output_file);
@@ -158,6 +160,8 @@ void benchmark(const std::string & dict_file,
     elapsedTime = sw.getMillisec();
     printf("elapsed time: %0.2f ms\n\n", elapsedTime);
 #endif
+
+#endif // !_DEBUG
 
 #if 1
     sw.start();

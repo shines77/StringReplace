@@ -234,8 +234,8 @@ int StringReplace(const std::string & name,
 
     double elapsedTime = sw.getMillisec();
 
-    printf("ac_trie.max_state_id() = %u\n", (uint32_t)ac_trie.max_state_id());
-    printf("ac_trie build elapsed time: %0.2f ms\n\n", elapsedTime);
+    printf("darts_trie.max_state_id() = %u\n", (uint32_t)ac_trie.max_state_id());
+    printf("darts_trie build elapsed time: %0.2f ms\n\n", elapsedTime);
 
 #if USE_READ_WRITE_STATISTICS
     std::size_t globalReadBytes = 0;

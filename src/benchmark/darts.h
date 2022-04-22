@@ -63,13 +63,16 @@ public:
 
     static const ident_t kInvalidIdent = 0;
     static const ident_t kRootIdent = 1;
+    static const ident_t kFirstFreeIdent = 2;
 
-    static const size_type kMaxAscii = 256;
+    static const size_type kMaxAscii = size_type(1) << (sizeof(char_type) * 8);
 
     static const std::uint32_t kPatternIdMask = 0x7FFFFFFFu;
     static const std::uint32_t kHasChildMask = 0x40000000u;
     static const std::uint32_t kIsFinalMask = 0x80000000u;
     static const std::uint32_t kIsFreeMask = 0x80000000u;
+
+    static const std::uint32_t kSignMask = 0x80000000u;
 
     #pragma pack(push, 1)
 
@@ -85,6 +88,9 @@ public:
                 std::uint32_t   is_final   : 1;
             };
         };
+
+        State() noexcept : base(0), check(0), fail_link(kInvalidIdent), identifier(0) {
+        }
     };
 
     struct MatchInfo {
@@ -98,14 +104,17 @@ public:
 
 private:
     std::vector<state_type> states_;
+
+    ident_t first_free_id_;
+    ident_t last_free_id_;
     AcTireT acTrie_;
 
 public:
-    Darts() {
+    Darts() : first_free_id_(kFirstFreeIdent), last_free_id_(kFirstFreeIdent) {
         this->create_root();
     }
 
-    Darts(size_type capacity) {
+    Darts(size_type capacity) : first_free_id_(kFirstFreeIdent), last_free_id_(kFirstFreeIdent) {
         if (capacity != 0) {
             this->states_.reserve(capacity);
         }
@@ -126,6 +135,18 @@ public:
         return ((identifier != kInvalidIdent) && (identifier < this->max_state_id()));
     }
 
+    bool is_valid_base(ident_t identifier) const {
+        return ((identifier > kRootIdent) && ((identifier & kSignMask) == 0));
+    }
+
+    bool is_valid_child(ident_t identifier) const {
+        return ((identifier > kRootIdent) && (identifier < this->max_state_id()));
+    }
+
+    bool is_allocated_child(ident_t identifier) const {
+        return ((identifier > kRootIdent) && (identifier < this->max_state_id()) && !this->is_free_state(identifier));
+    }
+
     size_type size() const {
         return this->states_.size();
     }
@@ -136,6 +157,27 @@ public:
 
     const State & states(size_type index) const {
         return this->states_[index];
+    }
+
+    bool is_free_state(ident_t index) const {
+        const State & state = this->states_[index];
+        return (state.base == 0 && state.check == 0);
+    }
+
+    ident_t first_free_id() const {
+        return this->first_free_id_;
+    }
+
+    void set_first_free_id(ident_t next) {
+        this->first_free_id_ = next;
+    }
+
+    ident_t last_free_id() const {
+        return this->last_free_id_;
+    }
+
+    void set_last_free_id(ident_t last) {
+        this->last_free_id_ = last;
     }
 
     ident_t root() const {
@@ -176,50 +218,207 @@ public:
         }
     }
 
+    inline ident_t find_first_free_state() {
+        ident_t first = this->first_free_id();
+        ident_t next = this->find_next_free_state(first);
+        if (next >= kFirstFreeIdent) {
+            this->set_first_free_id(next);
+        }
+        return next;
+    }
+
+    inline ident_t find_next_free_state(ident_t first) {
+        for (ident_t cur = first; cur < this->max_state_id(); cur++) {
+            const State & cur_state = this->states_[cur];
+            if (cur_state.base == 0 && cur_state.check == 0) {
+                return cur;
+            }
+        }
+        return kInvalidIdent;
+    }
+
     void build() {
+        std::vector<ident_t> ac_queue;
         std::vector<ident_t> queue;
+        ac_queue.reserve(this->acTrie_.size());
         queue.reserve(this->acTrie_.size());
 
-        ident_t root = this->acTrie_.root();
+        size_type state_capacity = (size_type)((double)this->acTrie_.size() * 1.1);
+        this->states_.reserve(state_capacity);
+        this->states_.resize(this->acTrie_.size());
+
+        ident_t root_ac = this->acTrie_.root();
+        ac_queue.push_back(root_ac);
+
+        ident_t root = this->root();
         queue.push_back(root);
 
         size_type head = 0;
-        while (likely(head < queue.size())) {
+        size_type first_children = 0;
+        while (likely(head < ac_queue.size())) {
+            ident_t cur_ac = ac_queue[head];
+            AcState & cur_ac_state = this->acTrie_.states(cur_ac);
+
             ident_t cur = queue[head++];
-            AcState & cur_state = this->acTrie_.states(cur);
-            for (auto iter = cur_state.children.begin();
-                iter != cur_state.children.end(); ++iter) {
-                std::uint32_t label = iter->first;
-                ident_t child = iter->second;
-                AcState & child_state = this->acTrie_.states(child);
-                assert(this->acTrie_.is_valid_id(child));
-                if (likely(cur != root)) {
-                    ident_t node = cur_state.fail_link;
-                    do {
-                        if (likely(node != kInvalidIdent)) {
-                            AcState & node_state = this->acTrie_.states(node);
-                            auto node_iter = node_state.children.find(label);
-                            if (likely(node_iter == node_state.children.end())) {
-                                // node = node->fail;
-                                node = node_state.fail_link;
-                            }
-                            else {
-                                // child->fail = node->children[i];
-                                child_state.fail_link = node_iter->second;
+            State & cur_state = this->states_[cur];
+
+            std::size_t nums_child = cur_ac_state.children.size();
+            cur_state.pattern_id = cur_ac_state.pattern_id;
+            cur_state.is_final = cur_ac_state.is_final;
+            cur_state.has_child = (nums_child != 0) ? 1 : 0;
+
+            if (nums_child > 0) {
+                if (head == 1) {
+                    first_children = nums_child;
+                }
+                // Find [min, max] label
+                std::uint32_t min_label = kMaxAscii - 1;
+                std::uint32_t max_label = 0;
+                for (auto iter = cur_ac_state.children.begin();
+                    iter != cur_ac_state.children.end(); ++iter) {
+                    std::uint32_t label = iter->first;
+                    if (label < min_label) {
+                        min_label = label;
+                    }
+                    if (label > max_label) {
+                        max_label = label;
+                    }
+                }
+
+                // Search base value
+                bool base_found = false;
+                ident_t first_free = this->find_first_free_state();
+                ident_t base = first_free - min_label;
+                if (!this->is_valid_base(base)) {
+                    first_free = kFirstFreeIdent + min_label;
+                    first_free = this->find_next_free_state(first_free);
+                }
+                do {
+                    if (first_free != kInvalidIdent) {
+                        bool search_next_base = false;
+                        base = first_free - min_label;
+                        for (auto iter = cur_ac_state.children.begin();
+                            iter != cur_ac_state.children.end(); ++iter) {
+                            std::uint32_t label = iter->first;
+                            ident_t child = base + label;
+                            if (child < this->states_.size()) {
+                                if (!this->is_free_state(child)) {
+                                    first_free = this->find_next_free_state(first_free + 1);
+                                    if ((first_children != size_type(-1)) && (head > first_children + 1)) {
+                                        this->set_first_free_id(first_free);
+                                        first_children = size_type(-1);
+                                    }
+                                    search_next_base = true;
+                                    break;
+                                }
+                            } else {
+                                std::uint32_t label_size = max_label - min_label + 1;
+                                size_type newCapacity = base + kMaxAscii;
+                                this->states_.resize(newCapacity);
                                 break;
                             }
                         }
-                        else {
-                            // child->fail = root;
-                            child_state.fail_link = root;
-                            break;
-                        }
-                    } while (1);
+                        base_found = !search_next_base;
+                    } else {
+                        base = (ident_t)this->states_.size() - min_label;
+                        std::uint32_t label_size = max_label - min_label + 1;
+                        size_type newCapacity = this->states_.size() + kMaxAscii;
+                        this->states_.resize(newCapacity);
+                        base_found = true;
+                        break;
+                    }
+                } while (!base_found);
+
+                assert(base_found);
+                cur_state.base = base;
+
+                // Travel all children
+                for (auto iter = cur_ac_state.children.begin();
+                    iter != cur_ac_state.children.end(); ++iter) {
+                    std::uint32_t label = iter->first;
+
+                    ident_t child_ac = iter->second;
+                    AcState & child_ac_state = this->acTrie_.states(child_ac);
+                    assert(this->acTrie_.is_valid_id(child_ac));
+
+                    if (likely(cur_ac != root_ac)) {
+                        ident_t node_ac = cur_ac_state.fail_link;
+                        do {
+                            if (likely(node_ac != kInvalidIdent)) {
+                                AcState & node_ac_state = this->acTrie_.states(node_ac);
+                                auto node_iter = node_ac_state.children.find(label);
+                                if (likely(node_iter == node_ac_state.children.end())) {
+                                    // node = node->fail;
+                                    node_ac = node_ac_state.fail_link;
+                                }
+                                else {
+                                    // child->fail = node->children[i];
+                                    child_ac_state.fail_link = node_iter->second;
+                                    assert(child_ac != node_iter->second);
+                                    break;
+                                }
+                            }
+                            else {
+                                // child->fail = root;
+                                child_ac_state.fail_link = root_ac;
+                                break;
+                            }
+                        } while (1);
+                    }
+                    else {
+                        child_ac_state.fail_link = root_ac;
+                    }
+
+                    ident_t child = base + label;
+                    assert(this->is_valid_id(child));
+                    assert(this->is_free_state(child));
+
+                    State & child_state = this->states_[child];
+                    child_state.check = base;
+                    child_state.is_final = child_ac_state.is_final;
+                    child_state.has_child = (child_ac_state.children.size() != 0) ? 1 : 0;
+                    child_state.pattern_id = child_ac_state.pattern_id;
+                    //child_state.identifier = child_ac_state.identifier;
+
+                    if (likely(cur != root)) {
+                        ident_t node = cur_state.fail_link;
+                        do {
+                            if (likely((node != kInvalidIdent) && this->is_valid_child(node) && !this->is_free_state(node))) {
+                                State & node_state = this->states_[node];
+                                ident_t node_child = node_state.base + label;
+                                if (likely(node_child != kInvalidIdent) && this->is_valid_child(node_child)) {
+                                    State & node_child_state = this->states_[node_child];
+                                    if (likely(node_child_state.check != node_state.base ||
+                                               this->is_free_state(node_child))) {
+                                        // node = node->fail;
+                                        node = node_state.fail_link;
+                                    }
+                                    else {
+                                        // child->fail = node->children[i];
+                                        assert(child != node_child);
+                                        child_state.fail_link = node_child;
+                                        break;
+                                    }
+                                } else {
+                                    // child->fail = root;
+                                    child_state.fail_link = root;
+                                    break;
+                                }
+                            }
+                            else {
+                                // child->fail = root;
+                                child_state.fail_link = root;
+                                break;
+                            }
+                        } while (1);
+                    }
+                    else {
+                        child_state.fail_link = root;
+                    }
+
+                    ac_queue.push_back(child_ac);
+                    queue.push_back(child);
                 }
-                else {
-                    child_state.fail_link = root;
-                }
-                queue.push_back(child);
             }
         }
     }
@@ -241,8 +440,9 @@ public:
             State & cur_state = this->states_[cur];
             ident_t base = cur_state.base;
             ident_t child = base + label;
+            assert(this->is_valid_child(child));
             State & child_state = this->states_[child];
-            if (likely(child_state.check == base)) {
+            if (likely((child_state.check == base) && !this->is_free_state(child))) {
                 cur = child;
                 text++;
             } else {
@@ -293,8 +493,9 @@ public:
                 State & cur_state = this->states_[cur];
                 ident_t base = cur_state.base;
                 ident_t child = base + label;
+                assert(this->is_valid_child(child));
                 State & child_state = this->states_[child];
-                if (likely(child_state.check == base)) {
+                if (likely((child_state.check == base) && !this->is_free_state(child))) {
                     cur = child;
                 } else {
                     goto MatchNextLabel;
@@ -305,8 +506,9 @@ public:
                     State & cur_state = this->states_[cur];
                     ident_t base = cur_state.base;
                     ident_t child = base + label;
+                    assert(this->is_valid_child(child));
                     State & child_state = this->states_[child];
-                    if (likely(child_state.check != base)) {
+                    if (likely((child_state.check != base) || this->is_free_state(child))) {
                         if (likely(cur != root)) {
                             cur = cur_state.fail_link;
                         } else {
