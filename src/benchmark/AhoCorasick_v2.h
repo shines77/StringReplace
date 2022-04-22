@@ -141,16 +141,16 @@ public:
             State & cur_state = this->states_[cur];
             auto iter = cur_state.children.find(label);
             if (likely(iter == cur_state.children.end())) {
-                ident_t next = this->max_state_id();
-                cur_state.children.insert(std::make_pair(label, next));
+                ident_t child = this->max_state_id();
+                cur_state.children.insert(std::make_pair(label, child));
 
-                State next_state;
-                next_state.fail_link = kInvalidLink;
-                next_state.identifier = 0;
-                this->states_.push_back(next_state);
+                State child_state;
+                child_state.fail_link = kInvalidLink;
+                child_state.identifier = 0;
+                this->states_.push_back(child_state);
 
-                assert(next == this->last_state_id());
-                cur = next;
+                assert(child == this->last_state_id());
+                cur = child;
                 assert(this->is_valid_id(cur));
             }
             else {
@@ -209,7 +209,7 @@ public:
                                 node = node_state.fail_link;
                             }
                             else {
-                                // child->fail = node->next[i];
+                                // child->fail = node->children[i];
                                 child_state.fail_link = node_iter->second;
                                 break;
                             }
