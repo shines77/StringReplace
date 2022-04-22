@@ -35,6 +35,8 @@
 
 #include "benchmark.h"
 #include "win_iconv.h"
+#include "AhoCorasick_v1.h"
+#include "AhoCorasick_v2.h"
 
 namespace darts_bench {
 
@@ -49,6 +51,7 @@ template <typename CharT>
 class Darts {
 public:
     typedef Darts<CharT>                                    this_type;
+    typedef typename v1::AcTrie<CharT>                      AcTireT;
     typedef CharT                                           o_char_type;
     typedef typename ::detail::char_trait<CharT>::NoSigned  char_type;
     typedef typename ::detail::char_trait<CharT>::Signed    schar_type;
@@ -61,25 +64,26 @@ public:
     static const ident_t kRootLink = 1;
 
     static const size_type kMaxAscii = 256;
+
     static const std::uint32_t kPatternIdMask = 0x7FFFFFFFu;
+    static const std::uint32_t kHasChildMask = 0x40000000u;
     static const std::uint32_t kIsFinalMask = 0x80000000u;
+    static const std::uint32_t kIsFreeMask = 0x80000000u;
 
     #pragma pack(push, 1)
 
     struct State {
-        typedef std::map<std::uint32_t, ident_t> map_type;
-
         ident_t                 base;
         ident_t                 check;
         ident_t                 fail_link;
         union {
             std::uint32_t       identifier;
             struct {
-                std::uint32_t   pattern_id : 31;
+                std::uint32_t   pattern_id : 30;
+                std::uint32_t   has_child  : 1;
                 std::uint32_t   is_final   : 1;
             };
         };
-        map_type                children;
     };
 
     struct MatchInfo {
@@ -89,10 +93,11 @@ public:
 
     #pragma pack(pop)
 
-    typedef State   state_type;
+    typedef State state_type;
 
-private:    
+private:
     std::vector<state_type> states_;
+    AcTireT acTrie_;
 
 public:
     Darts() {
@@ -132,6 +137,14 @@ public:
         return kRootLink;
     }
 
+    void clear() {
+        this->acTrie_.clear();
+
+        this->states_.clear();
+        this->states_.reserve(2);
+        this->create_root();
+    }
+
     bool insert(const uchar_type * in_pattern, size_type length, std::uint32_t id) {
         const uchar_type * pattern = (const uchar_type *)in_pattern;
 
@@ -141,10 +154,11 @@ public:
         for (size_type i = 0; i < length; i++) {
             std::uint32_t label = (uchar_type)*pattern++;
             State & cur_state = this->states_[cur];
-            auto iter = cur_state.children.find(label);
-            if (likely(iter == cur_state.children.end())) {
+            ident_t base = cur_state.base;
+            ident_t child = base + label;
+            State & child_state = this->states_[child];
+            if (likely(child_state.check != base)) {
                 ident_t child = this->max_state_id();
-                cur_state.children.insert(std::make_pair(label, child));
 
                 State child_state;
                 child_state.base = 0;
@@ -158,8 +172,7 @@ public:
                 assert(this->is_valid_id(cur));
             }
             else {
-                assert(label == iter->first);
-                cur = iter->second;
+                cur = child;
                 assert(this->is_valid_id(cur));
             }
         }
@@ -185,6 +198,20 @@ public:
         return this->insert((const uchar_type *)pattern, length, id);
     }
 
+    bool insert(const std::string & pattern, std::uint32_t id) {
+        return this->insert(pattern.c_str(), pattern.size(), id);
+    }
+
+    void insert_all(const std::vector<std::string> & patterns) {
+        this->clear();
+        std::uint32_t index = 0;
+        for (auto iter = patterns.begin(); iter != patterns.end(); ++iter) {
+            const std::string & pattern = *iter;
+            this->insert(pattern.c_str(), pattern.size(), index);
+            index++;
+        }
+    }
+
     void build() {
         std::vector<ident_t> queue;
         queue.reserve(this->states_.size());
@@ -196,46 +223,50 @@ public:
         while (likely(head < queue.size())) {
             ident_t cur = queue[head++];
             State & cur_state = this->states_[cur];
-            for (auto iter = cur_state.children.begin();
-                iter != cur_state.children.end(); ++iter) {
-                std::uint32_t label = iter->first;
-                ident_t child = iter->second;
-                State & child_state = this->states_[child];
+            ident_t base = cur_state.base;
+            for (ident_t label = 0; label < kMaxAscii; label++) {
+                ident_t child = base + label;
                 assert(this->is_valid_id(child));
-                if (likely(cur != root)) {
-                    ident_t node = cur_state.fail_link;
-                    do {
-                        if (likely(node != kInvalidLink)) {
-                            State & node_state = this->states_[node];
-                            auto node_iter = node_state.children.find(label);
-                            if (likely(node_iter == node_state.children.end())) {
-                                // node = node->fail;
-                                node = node_state.fail_link;
+                State & child_state = this->states_[child];
+                if (likely(child_state.check == base)) {
+                    if (likely(cur != root)) {
+                        ident_t node = cur_state.fail_link;
+                        do {
+                            if (likely(node != kInvalidLink)) {
+                                State & node_state = this->states_[node];
+                                ident_t node_base = node_state.base;
+                                ident_t node_child = node_base + label;
+                                assert(this->is_valid_id(node_child));
+                                State & node_child_state = this->states_[node_child];
+                                if (likely(node_child_state.check != base)) {
+                                    // node = node->fail;
+                                    node = node_state.fail_link;
+                                }
+                                else {
+                                    // child->fail = node->children[i];
+                                    child_state.fail_link = node_child;
+                                    break;
+                                }
                             }
                             else {
-                                // child->fail = node->children[i];
-                                child_state.fail_link = node_iter->second;
+                                // child->fail = root;
+                                child_state.fail_link = root;
                                 break;
                             }
-                        }
-                        else {
-                            // child->fail = root;
-                            child_state.fail_link = root;
-                            break;
-                        }
-                    } while (1);
+                        } while (1);
+                    }
+                    else {
+                        child_state.fail_link = root;
+                    }
+                    queue.push_back(child);
                 }
-                else {
-                    child_state.fail_link = root;
-                }
-                queue.push_back(child);
             }
         }
     }
 
     inline
-    bool match_suffix(ident_t root, const uchar_type * first,
-                      const uchar_type * last, MatchInfo & matchInfo) {
+    bool match_tail(ident_t root, const uchar_type * first,
+                    const uchar_type * last, MatchInfo & matchInfo) {
         uchar_type * text_first = (uchar_type *)first;
         uchar_type * text_last = (uchar_type *)last;
         uchar_type * text = text_first;
@@ -245,12 +276,14 @@ public:
 
         ident_t cur = root;
         while (text < text_last) {
-            std::uint32_t lable = (uchar_type)*text;
+            std::uint32_t label = (uchar_type)*text;
             assert(this->is_valid_id(cur));
             State & cur_state = this->states_[cur];
-            auto iter = cur_state.children.find(lable);
-            if (likely(iter != cur_state.children.end())) {
-                cur = iter->second;
+            ident_t base = cur_state.base;
+            ident_t child = base + label;
+            State & child_state = this->states_[child];
+            if (likely(child_state.check == base)) {
+                cur = child;
                 text++;
             } else {
                 if ((cur != root) && (cur_state.is_final != 0)) {
@@ -266,15 +299,15 @@ public:
     }
 
     inline
-    bool match_suffix(ident_t root, const char_type * first,
-                      const char_type * last, MatchInfo & matchInfo) {
-        return this->match_suffix(root, (const uchar_type *)first, (const uchar_type *)last, matchInfo);
+    bool match_tail(ident_t root, const char_type * first,
+                    const char_type * last, MatchInfo & matchInfo) {
+        return this->match_tail(root, (const uchar_type *)first, (const uchar_type *)last, matchInfo);
     }
 
     inline
-    bool match_suffix(ident_t root, const schar_type * first,
-                      const schar_type * last, MatchInfo & matchInfo) {
-        return this->match_suffix(root, (const uchar_type *)first, (const uchar_type *)last, matchInfo);
+    bool match_tail(ident_t root, const schar_type * first,
+                    const schar_type * last, MatchInfo & matchInfo) {
+        return this->match_tail(root, (const uchar_type *)first, (const uchar_type *)last, matchInfo);
     }
 
     //
@@ -294,13 +327,15 @@ public:
 
         while (text < text_last) {
             ident_t node;
-            std::uint32_t lable = (uchar_type)*text;
+            std::uint32_t label = (uchar_type)*text;
             if (likely(cur == root)) {
                 assert(this->is_valid_id(cur));
                 State & cur_state = this->states_[cur];
-                auto iter = cur_state.children.find(lable);
-                if (likely(iter != cur_state.children.end())) {
-                    cur = iter->second;
+                ident_t base = cur_state.base;
+                ident_t child = base + label;
+                State & child_state = this->states_[child];
+                if (likely(child_state.check == base)) {
+                    cur = child;
                 } else {
                     goto MatchNextLabel;
                 }
@@ -308,15 +343,17 @@ public:
                 do {
                     assert(this->is_valid_id(cur));
                     State & cur_state = this->states_[cur];
-                    auto iter = cur_state.children.find(lable);
-                    if (likely(iter == cur_state.children.end())) {
+                    ident_t base = cur_state.base;
+                    ident_t child = base + label;
+                    State & child_state = this->states_[child];
+                    if (likely(child_state.check != base)) {
                         if (likely(cur != root)) {
                             cur = cur_state.fail_link;
                         } else {
                             goto MatchNextLabel;
                         }
                     } else {
-                        cur = iter->second;
+                        cur = child;
                         break;
                     }
                 } while (1);
@@ -335,17 +372,17 @@ public:
                         // If current full prefix is matched, judge the continous suffixs has some chars is matched?
                         // If it's have any chars is matched, it would be the longest matched suffix.
                         MatchInfo matchInfo1;
-                        bool matched1 = this->match_suffix(cur, text + 1, text_last, matchInfo1);
+                        bool matched1 = this->match_tail(cur, text + 1, text_last, matchInfo1);
                         if (matched1) {
                             matchInfo.last_pos  += matchInfo1.last_pos;
                             matchInfo.pattern_id = matchInfo1.pattern_id;
                             return true;
                         }
                     }
-                    if (node_state.children.size() != 0) {
+                    if (node_state.has_child != 0) {
                         // If a sub suffix exists, match the continous longest suffixs.
                         MatchInfo matchInfo2;
-                        bool matched2 = this->match_suffix(node, text + 1, text_last, matchInfo2);
+                        bool matched2 = this->match_tail(node, text + 1, text_last, matchInfo2);
                         if (matched2) {
                             matchInfo.last_pos  += matchInfo2.last_pos;
                             matchInfo.pattern_id = matchInfo2.pattern_id;
@@ -383,7 +420,7 @@ private:
         dummy.identifier = 0;
         this->states_.push_back(std::move(dummy));
 
-        // Append Root state, Identifier = 1
+        // Append root state, Identifier = 1
         State root;
         root.base = 0;
         root.check = 0;

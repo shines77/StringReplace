@@ -89,7 +89,7 @@ public:
 
     typedef State   state_type;
 
-private:    
+private:
     std::vector<state_type> states_;
 
 public:
@@ -128,6 +128,12 @@ public:
 
     ident_t root() const {
         return kRootLink;
+    }
+
+    void clear() {
+        this->states_.clear();
+        this->states_.reserve(2);
+        this->create_root();
     }
 
     bool insert(const uchar_type * in_pattern, size_type length, std::uint32_t id) {
@@ -181,6 +187,20 @@ public:
         return this->insert((const uchar_type *)pattern, length, id);
     }
 
+    bool insert(const std::string & pattern, std::uint32_t id) {
+        return this->insert(pattern.c_str(), pattern.size(), id);
+    }
+
+    void insert_all(const std::vector<std::string> & patterns) {
+        this->clear();
+        std::uint32_t index = 0;
+        for (auto iter = patterns.begin(); iter != patterns.end(); ++iter) {
+            const std::string & pattern = *iter;
+            this->insert(pattern.c_str(), pattern.size(), index);
+            index++;
+        }
+    }
+
     void build() {
         std::vector<ident_t> queue;
         queue.reserve(this->states_.size());
@@ -230,8 +250,8 @@ public:
     }
 
     inline
-    bool match_suffix(ident_t root, const uchar_type * first,
-                      const uchar_type * last, MatchInfo & matchInfo) {
+    bool match_tail(ident_t root, const uchar_type * first,
+                    const uchar_type * last, MatchInfo & matchInfo) {
         bool matched = false;
         uchar_type * text_first = (uchar_type *)first;
         uchar_type * text_last = (uchar_type *)last;
@@ -240,10 +260,10 @@ public:
 
         ident_t cur = root;
         while (text < text_last) {
-            std::uint32_t lable = (uchar_type)*text;
+            std::uint32_t label = (uchar_type)*text;
             assert(this->is_valid_id(cur));
             State & cur_state = this->states_[cur];
-            auto iter = cur_state.children.find(lable);
+            auto iter = cur_state.children.find(label);
             if (iter != cur_state.children.end()) {
                 cur = iter->second;
                 text++;
@@ -261,15 +281,15 @@ public:
     }
 
     inline
-    bool match_suffix(ident_t root, const char_type * first,
-                      const char_type * last, MatchInfo & matchInfo) {
-        return this->match_suffix(root, (const uchar_type *)first, (const uchar_type *)last, matchInfo);
+    bool match_tail(ident_t root, const char_type * first,
+                    const char_type * last, MatchInfo & matchInfo) {
+        return this->match_tail(root, (const uchar_type *)first, (const uchar_type *)last, matchInfo);
     }
 
     inline
-    bool match_suffix(ident_t root, const schar_type * first,
-                      const schar_type * last, MatchInfo & matchInfo) {
-        return this->match_suffix(root, (const uchar_type *)first, (const uchar_type *)last, matchInfo);
+    bool match_tail(ident_t root, const schar_type * first,
+                    const schar_type * last, MatchInfo & matchInfo) {
+        return this->match_tail(root, (const uchar_type *)first, (const uchar_type *)last, matchInfo);
     }
 
     //
@@ -291,11 +311,11 @@ public:
         while (text < text_last) {
             const_iterator iter;
             bool hasChildren = false;
-            std::uint32_t lable = (uchar_type)*text;
+            std::uint32_t label = (uchar_type)*text;
             do {
                 assert(this->is_valid_id(cur));
                 State & cur_state = this->states_[cur];
-                iter = cur_state.children.find(lable);
+                iter = cur_state.children.find(label);
                 hasChildren = (iter != cur_state.children.end());
                 if (!hasChildren && (cur != this->root())) {
                     cur = cur_state.fail_link;
@@ -323,7 +343,7 @@ public:
                             // If current full prefix is matched, judge the continous suffixs has some chars is matched?
                             // If it's have any chars is matched, it would be the longest matched suffix.
                             MatchInfo matchInfo1;
-                            bool matched1 = this->match_suffix(cur, text + 1, text_last, matchInfo1);
+                            bool matched1 = this->match_tail(cur, text + 1, text_last, matchInfo1);
                             if (matched1) {
                                 matchInfo.last_pos  += matchInfo1.last_pos;
                                 matchInfo.pattern_id = matchInfo1.pattern_id;
@@ -333,7 +353,7 @@ public:
                         if (node_state.children.size() != 0) {
                             // If a sub suffix exists, match the continous longest suffixs.
                             MatchInfo matchInfo2;
-                            bool matched2 = this->match_suffix(node, text + 1, text_last, matchInfo2);
+                            bool matched2 = this->match_tail(node, text + 1, text_last, matchInfo2);
                             if (matched2) {
                                 matchInfo.last_pos  += matchInfo2.last_pos;
                                 matchInfo.pattern_id = matchInfo2.pattern_id;
@@ -369,7 +389,7 @@ private:
         dummy.identifier = 0;
         this->states_.push_back(std::move(dummy));
 
-        // Append Root state, Identifier = 1
+        // Append root state, Identifier = 1
         State root;
         root.fail_link = kInvalidLink;
         root.identifier = 0;

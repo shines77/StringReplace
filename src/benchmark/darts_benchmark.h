@@ -32,7 +32,7 @@
 
 #include "benchmark.h"
 #include "win_iconv.h"
-#include "AhoCorasick_v1.h"
+#include "darts.h"
 
 //
 // See: https://www.cnblogs.com/zhangchaoyang/articles/4508266.html
@@ -224,7 +224,7 @@ int StringReplace(const std::string & name,
     std::uint32_t index = 0;
     for (auto iter = dict_list.begin(); iter != dict_list.end(); ++iter) {
         const std::string & key = iter->first;
-        ac_trie.insert(key.c_str(), key.size(), index);
+        ac_trie.insert(key, index);
         index++;
     };
 
