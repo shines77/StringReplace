@@ -80,7 +80,7 @@ void preprocessing_dict_file(const std::string & dict_kv,
                              std::vector<std::pair<std::string, int>> & dict_list)
 {
     std::size_t total_size = dict_kv.size();
-    printf("darts_bench::preprocessing_dict_file()\n\n");
+    printf("ac_bench::preprocessing_dict_file()\n\n");
 
     std::uint32_t kv_index = 0;
     std::size_t last_pos = 0;
