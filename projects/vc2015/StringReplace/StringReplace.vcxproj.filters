@@ -39,5 +39,8 @@
     <ClInclude Include="..\..\..\src\benchmark\AhoCorasick_v2.h">
       <Filter>src\benchmark</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\src\benchmark\darts.h">
+      <Filter>src\benchmark</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

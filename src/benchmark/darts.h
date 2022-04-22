@@ -1,6 +1,6 @@
 
-#ifndef AHO_CORASICK_AUTO_V2_H
-#define AHO_CORASICK_AUTO_V2_H
+#ifndef DOUBLE_ARRAY_TRIE_H
+#define DOUBLE_ARRAY_TRIE_H
 
 #if defined(_MSC_VER) && (_MSC_VER >= 1020)
 #pragma once
@@ -36,7 +36,7 @@
 #include "benchmark.h"
 #include "win_iconv.h"
 
-namespace v2 {
+namespace darts_bench {
 
 //
 // See: https://zhuanlan.zhihu.com/p/368184958 (KMP, Trie, DFA, AC-Auto, very clear)
@@ -46,9 +46,9 @@ namespace v2 {
 // See: https://nark.cc/p/?p=1453
 //
 template <typename CharT>
-class AcTrie {
+class Darts {
 public:
-    typedef AcTrie<CharT>                                   this_type;
+    typedef Darts<CharT>                                    this_type;
     typedef CharT                                           o_char_type;
     typedef typename ::detail::char_trait<CharT>::NoSigned  char_type;
     typedef typename ::detail::char_trait<CharT>::Signed    schar_type;
@@ -93,18 +93,18 @@ private:
     std::vector<state_type> states_;
 
 public:
-    AcTrie() {
+    Darts() {
         this->create_root();
     }
 
-    AcTrie(size_type capacity) {
+    Darts(size_type capacity) {
         if (capacity != 0) {
             this->states_.reserve(capacity);
         }
         this->create_root();
     }
 
-    virtual ~AcTrie() {}
+    virtual ~Darts() {}
 
     identifier_t max_state_id() const {
         return static_cast<identifier_t>(this->states_.size());
@@ -385,6 +385,6 @@ private:
     }
 };
 
-} // namespace v2
+} // namespace darts_bench
 
-#endif // AHO_CORASICK_AUTO_V2_H
+#endif // DOUBLE_ARRAY_TRIE_H
