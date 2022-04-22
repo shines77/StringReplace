@@ -232,11 +232,12 @@ public:
     inline
     bool search_suffix(identifier_t root, const uchar_type * first,
                        const uchar_type * last, MatchInfo & matchInfo) {
-        bool matched = false;
         uchar_type * text_first = (uchar_type *)first;
         uchar_type * text_last = (uchar_type *)last;
         uchar_type * text = text_first;
         assert(text_first <= text_last);
+
+        bool matched = false;
 
         identifier_t cur = root;
         while (text < text_last) {
@@ -244,7 +245,7 @@ public:
             assert(this->is_valid_id(cur));
             State & cur_state = this->states_[cur];
             auto iter = cur_state.children.find(lable);
-            if (unlikely(iter != cur_state.children.end())) {
+            if (likely(iter != cur_state.children.end())) {
                 cur = iter->second;
                 text++;
             } else {
@@ -288,17 +289,15 @@ public:
         bool matched = false;
 
         while (text < text_last) {
-MatchNextLabel:
             std::uint32_t lable = (uchar_type)*text;
-            if (unlikely(cur == root)) {
+            if (likely(cur == root)) {
                 assert(this->is_valid_id(cur));
                 State & cur_state = this->states_[cur];
                 auto iter = cur_state.children.find(lable);
                 if (likely(iter != cur_state.children.end())) {
                     cur = iter->second;
                 } else {
-                    text++;
-                    continue;
+                    goto MatchNextLabel;
                 }
             } else {
                 do {
@@ -309,11 +308,7 @@ MatchNextLabel:
                         if (likely(cur != root)) {
                             cur = cur_state.fail_link;
                         } else {
-                            text++;
-                            if (text < text_last)
-                                goto MatchNextLabel;
-                            else
-                                return matched;
+                            goto MatchNextLabel;
                         }
                     } else {
                         cur = iter->second;
@@ -356,6 +351,7 @@ MatchNextLabel:
                 node = node_state.fail_link;
             } while (node != root);
 
+MatchNextLabel:
             text++;
         }
 
