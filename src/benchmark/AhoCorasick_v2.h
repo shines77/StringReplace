@@ -54,11 +54,11 @@ public:
     typedef typename ::detail::char_trait<CharT>::Signed    schar_type;
     typedef typename ::detail::char_trait<CharT>::Unsigned  uchar_type;
 
-    typedef std::size_t         size_type;
-    typedef std::uint32_t       identifier_t;
+    typedef std::size_t     size_type;
+    typedef std::uint32_t   ident_t;
 
-    static const identifier_t kInvalidLink = 0;
-    static const identifier_t kRootLink = 1;
+    static const ident_t kInvalidLink = 0;
+    static const ident_t kRootLink = 1;
 
     static const size_type kMaxAscii = 256;
     static const std::uint32_t kPatternIdMask = 0x7FFFFFFFu;
@@ -67,17 +67,17 @@ public:
     #pragma pack(push, 1)
 
     struct State {
-        typedef std::map<std::uint32_t, identifier_t> map_type;
+        typedef std::map<std::uint32_t, ident_t> map_type;
 
-        identifier_t                            fail_link;
+        ident_t                 fail_link;
         union {
+            std::uint32_t       identifier;
             struct {
-                std::uint32_t                   pattern_id : 31;
-                std::uint32_t                   is_final   : 1;
+                std::uint32_t   pattern_id : 31;
+                std::uint32_t   is_final   : 1;
             };
-            std::uint32_t                       identifier;
         };
-        std::map<std::uint32_t, identifier_t>   children;
+        map_type                children;
     };
 
     struct MatchInfo {
@@ -106,15 +106,15 @@ public:
 
     virtual ~AcTrie() {}
 
-    identifier_t max_state_id() const {
-        return static_cast<identifier_t>(this->states_.size());
+    ident_t max_state_id() const {
+        return static_cast<ident_t>(this->states_.size());
     }
 
-    identifier_t last_state_id() const {
-        return static_cast<identifier_t>(this->states_.size() - 1);
+    ident_t last_state_id() const {
+        return static_cast<ident_t>(this->states_.size() - 1);
     }
 
-    bool is_valid_id(identifier_t identifier) const {
+    bool is_valid_id(ident_t identifier) const {
         return ((identifier != kInvalidLink) && (identifier < this->max_state_id()));
     }
 
@@ -126,14 +126,14 @@ public:
         return this->states_[index];
     }
 
-    identifier_t root() const {
+    ident_t root() const {
         return kRootLink;
     }
 
     bool insert(const uchar_type * in_pattern, size_type length, std::uint32_t id) {
         const uchar_type * pattern = (const uchar_type *)in_pattern;
 
-        identifier_t cur = this->root();
+        ident_t cur = this->root();
         assert(this->is_valid_id(cur));
 
         for (size_type i = 0; i < length; i++) {
@@ -141,7 +141,7 @@ public:
             State & cur_state = this->states_[cur];
             auto iter = cur_state.children.find(label);
             if (likely(iter == cur_state.children.end())) {
-                identifier_t next = this->max_state_id();
+                ident_t next = this->max_state_id();
                 cur_state.children.insert(std::make_pair(label, next));
 
                 State next_state;
@@ -182,24 +182,24 @@ public:
     }
 
     void build() {
-        std::vector<identifier_t> queue;
+        std::vector<ident_t> queue;
         queue.reserve(this->states_.size());
 
-        identifier_t root = this->root();
+        ident_t root = this->root();
         queue.push_back(root);
 
         size_type head = 0;
         while (likely(head < queue.size())) {
-            identifier_t cur = queue[head++];
+            ident_t cur = queue[head++];
             State & cur_state = this->states_[cur];
             for (auto iter = cur_state.children.begin();
                 iter != cur_state.children.end(); ++iter) {
                 std::uint32_t label = iter->first;
-                identifier_t child = iter->second;
+                ident_t child = iter->second;
                 State & child_state = this->states_[child];
                 assert(this->is_valid_id(child));
                 if (likely(cur != root)) {
-                    identifier_t node = cur_state.fail_link;
+                    ident_t node = cur_state.fail_link;
                     do {
                         if (likely(node != kInvalidLink)) {
                             State & node_state = this->states_[node];
@@ -230,7 +230,7 @@ public:
     }
 
     inline
-    bool search_suffix(identifier_t root, const uchar_type * first,
+    bool match_suffix(ident_t root, const uchar_type * first,
                        const uchar_type * last, MatchInfo & matchInfo) {
         uchar_type * text_first = (uchar_type *)first;
         uchar_type * text_last = (uchar_type *)last;
@@ -239,7 +239,7 @@ public:
 
         bool matched = false;
 
-        identifier_t cur = root;
+        ident_t cur = root;
         while (text < text_last) {
             std::uint32_t lable = (uchar_type)*text;
             assert(this->is_valid_id(cur));
@@ -262,15 +262,15 @@ public:
     }
 
     inline
-    bool search_suffix(identifier_t root, const char_type * first,
+    bool match_suffix(ident_t root, const char_type * first,
                        const char_type * last, MatchInfo & matchInfo) {
-        return this->search_suffix(root, (const uchar_type *)first, (const uchar_type *)last, matchInfo);
+        return this->match_suffix(root, (const uchar_type *)first, (const uchar_type *)last, matchInfo);
     }
 
     inline
-    bool search_suffix(identifier_t root, const schar_type * first,
+    bool match_suffix(ident_t root, const schar_type * first,
                        const schar_type * last, MatchInfo & matchInfo) {
-        return this->search_suffix(root, (const uchar_type *)first, (const uchar_type *)last, matchInfo);
+        return this->match_suffix(root, (const uchar_type *)first, (const uchar_type *)last, matchInfo);
     }
 
     //
@@ -278,18 +278,18 @@ public:
     // See: https://juejin.cn/post/6844903635130777614 (The DFA diagram drawing is nice.)
     // See: https://zhuanlan.zhihu.com/p/191644920 (The code is a little similar to Article 1.)
     //
-    bool search(const uchar_type * first, const uchar_type * last, MatchInfo & matchInfo) {
+    bool match_one(const uchar_type * first, const uchar_type * last, MatchInfo & matchInfo) {
         uchar_type * text_first = (uchar_type *)first;
         uchar_type * text_last = (uchar_type *)last;
         uchar_type * text = text_first;
         assert(text_first <= text_last);
 
-        identifier_t root = this->root();
-        identifier_t cur = root;
+        ident_t root = this->root();
+        ident_t cur = root;
         bool matched = false;
 
         while (text < text_last) {
-            identifier_t node;
+            ident_t node;
             std::uint32_t lable = (uchar_type)*text;
             if (likely(cur == root)) {
                 assert(this->is_valid_id(cur));
@@ -331,7 +331,7 @@ public:
                         // If current full prefix is matched, judge the continous suffixs has some chars is matched?
                         // If it's have any chars is matched, it would be the longest matched suffix.
                         MatchInfo matchInfo1;
-                        bool matched1 = this->search_suffix(cur, text + 1, text_last, matchInfo1);
+                        bool matched1 = this->match_suffix(cur, text + 1, text_last, matchInfo1);
                         if (matched1) {
                             matchInfo.last_pos  += matchInfo1.last_pos;
                             matchInfo.pattern_id = matchInfo1.pattern_id;
@@ -341,7 +341,7 @@ public:
                     if (node_state.children.size() != 0) {
                         // If a sub suffix exists, match the continous longest suffixs.
                         MatchInfo matchInfo2;
-                        bool matched2 = this->search_suffix(node, text + 1, text_last, matchInfo2);
+                        bool matched2 = this->match_suffix(node, text + 1, text_last, matchInfo2);
                         if (matched2) {
                             matchInfo.last_pos  += matchInfo2.last_pos;
                             matchInfo.pattern_id = matchInfo2.pattern_id;
@@ -359,12 +359,12 @@ MatchNextLabel:
         return matched;
     }
 
-    bool search(const char_type * first, const char_type * last, MatchInfo & matchInfo) {
-        return this->search((const uchar_type *)first, (const uchar_type *)last, matchInfo);
+    bool match_one(const char_type * first, const char_type * last, MatchInfo & matchInfo) {
+        return this->match_one((const uchar_type *)first, (const uchar_type *)last, matchInfo);
     }
 
-    bool search(const schar_type * first, const schar_type * last, MatchInfo & matchInfo) {
-        return this->search((const uchar_type *)first, (const uchar_type *)last, matchInfo);
+    bool match_one(const schar_type * first, const schar_type * last, MatchInfo & matchInfo) {
+        return this->match_one((const uchar_type *)first, (const uchar_type *)last, matchInfo);
     }
 
 private:

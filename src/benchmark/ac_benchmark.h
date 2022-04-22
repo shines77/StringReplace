@@ -163,7 +163,7 @@ std::size_t replaceInputChunkText(AcTrieT & acTrie,
 
         typename AcTrieT::MatchInfo matchInfo;
         while (line_first < line_last) {
-            bool matched = acTrie.search(line_first, line_last, matchInfo);
+            bool matched = acTrie.match_one(line_first, line_last, matchInfo);
             if (!matched) {
                 while (line_first < line_last) {
                     *output++ = *line_first++;
