@@ -51,17 +51,18 @@ template <typename CharT>
 class Darts {
 public:
     typedef Darts<CharT>                                    this_type;
-    typedef typename v1::AcTrie<CharT>                      AcTireT;
     typedef CharT                                           o_char_type;
     typedef typename ::detail::char_trait<CharT>::NoSigned  char_type;
     typedef typename ::detail::char_trait<CharT>::Signed    schar_type;
     typedef typename ::detail::char_trait<CharT>::Unsigned  uchar_type;
 
-    typedef std::size_t     size_type;
-    typedef std::uint32_t   ident_t;
+    typedef typename v1::AcTrie<CharT>                      AcTireT;
+    typedef typename AcTireT::State                         AcState;
+    typedef typename AcTireT::size_type                     size_type;
+    typedef typename AcTireT::ident_t                       ident_t;
 
-    static const ident_t kInvalidLink = 0;
-    static const ident_t kRootLink = 1;
+    static const ident_t kInvalidIdent = 0;
+    static const ident_t kRootIdent = 1;
 
     static const size_type kMaxAscii = 256;
 
@@ -122,19 +123,23 @@ public:
     }
 
     bool is_valid_id(ident_t identifier) const {
-        return ((identifier != kInvalidLink) && (identifier < this->max_state_id()));
+        return ((identifier != kInvalidIdent) && (identifier < this->max_state_id()));
     }
 
-    size_type state_count() const {
+    size_type size() const {
         return this->states_.size();
     }
 
-    const State & state(size_type index) {
+    State & states(size_type index) {
+        return this->states_[index];
+    }
+
+    const State & states(size_type index) const {
         return this->states_[index];
     }
 
     ident_t root() const {
-        return kRootLink;
+        return kRootIdent;
     }
 
     void clear() {
@@ -145,49 +150,8 @@ public:
         this->create_root();
     }
 
-    bool insert(const uchar_type * in_pattern, size_type length, std::uint32_t id) {
-        const uchar_type * pattern = (const uchar_type *)in_pattern;
-
-        ident_t cur = this->root();
-        assert(this->is_valid_id(cur));
-
-        for (size_type i = 0; i < length; i++) {
-            std::uint32_t label = (uchar_type)*pattern++;
-            State & cur_state = this->states_[cur];
-            ident_t base = cur_state.base;
-            ident_t child = base + label;
-            State & child_state = this->states_[child];
-            if (likely(child_state.check != base)) {
-                ident_t child = this->max_state_id();
-
-                State child_state;
-                child_state.base = 0;
-                child_state.check = 0;
-                child_state.fail_link = kInvalidLink;
-                child_state.identifier = 0;
-                this->states_.push_back(child_state);
-
-                assert(child == this->last_state_id());
-                cur = child;
-                assert(this->is_valid_id(cur));
-            }
-            else {
-                cur = child;
-                assert(this->is_valid_id(cur));
-            }
-        }
-
-        // Setting the leaf state
-        assert(this->is_valid_id(cur));
-        State & leaf_state = this->states_[cur];
-        if (leaf_state.is_final == 0) {
-            //leaf_state.pattern_id = id & kPatternIdMask;
-            //leaf_state.is_final = 1;
-            leaf_state.identifier = (id & kPatternIdMask) | kIsFinalMask;
-            return true;
-        } else {
-            return false;
-        }
+    bool insert(const uchar_type * pattern, size_type length, std::uint32_t id) {
+        return this->acTrie_.insert(pattern, length, id);
     }
 
     bool insert(const char_type * pattern, size_type length, std::uint32_t id) {
@@ -214,52 +178,48 @@ public:
 
     void build() {
         std::vector<ident_t> queue;
-        queue.reserve(this->states_.size());
+        queue.reserve(this->acTrie_.size());
 
-        ident_t root = this->root();
+        ident_t root = this->acTrie_.root();
         queue.push_back(root);
 
         size_type head = 0;
         while (likely(head < queue.size())) {
             ident_t cur = queue[head++];
-            State & cur_state = this->states_[cur];
-            ident_t base = cur_state.base;
-            for (ident_t label = 0; label < kMaxAscii; label++) {
-                ident_t child = base + label;
-                assert(this->is_valid_id(child));
-                State & child_state = this->states_[child];
-                if (likely(child_state.check == base)) {
-                    if (likely(cur != root)) {
-                        ident_t node = cur_state.fail_link;
-                        do {
-                            if (likely(node != kInvalidLink)) {
-                                State & node_state = this->states_[node];
-                                ident_t node_base = node_state.base;
-                                ident_t node_child = node_base + label;
-                                assert(this->is_valid_id(node_child));
-                                State & node_child_state = this->states_[node_child];
-                                if (likely(node_child_state.check != base)) {
-                                    // node = node->fail;
-                                    node = node_state.fail_link;
-                                }
-                                else {
-                                    // child->fail = node->children[i];
-                                    child_state.fail_link = node_child;
-                                    break;
-                                }
+            AcState & cur_state = this->acTrie_.states(cur);
+            for (auto iter = cur_state.children.begin();
+                iter != cur_state.children.end(); ++iter) {
+                std::uint32_t label = iter->first;
+                ident_t child = iter->second;
+                AcState & child_state = this->acTrie_.states(child);
+                assert(this->acTrie_.is_valid_id(child));
+                if (likely(cur != root)) {
+                    ident_t node = cur_state.fail_link;
+                    do {
+                        if (likely(node != kInvalidIdent)) {
+                            AcState & node_state = this->acTrie_.states(node);
+                            auto node_iter = node_state.children.find(label);
+                            if (likely(node_iter == node_state.children.end())) {
+                                // node = node->fail;
+                                node = node_state.fail_link;
                             }
                             else {
-                                // child->fail = root;
-                                child_state.fail_link = root;
+                                // child->fail = node->children[i];
+                                child_state.fail_link = node_iter->second;
                                 break;
                             }
-                        } while (1);
-                    }
-                    else {
-                        child_state.fail_link = root;
-                    }
-                    queue.push_back(child);
+                        }
+                        else {
+                            // child->fail = root;
+                            child_state.fail_link = root;
+                            break;
+                        }
+                    } while (1);
                 }
+                else {
+                    child_state.fail_link = root;
+                }
+                queue.push_back(child);
             }
         }
     }
@@ -416,7 +376,7 @@ private:
         State dummy;
         dummy.base = 0;
         dummy.check = 0;
-        dummy.fail_link = kInvalidLink;
+        dummy.fail_link = kInvalidIdent;
         dummy.identifier = 0;
         this->states_.push_back(std::move(dummy));
 
@@ -424,7 +384,7 @@ private:
         State root;
         root.base = 0;
         root.check = 0;
-        root.fail_link = kInvalidLink;
+        root.fail_link = kInvalidIdent;
         root.identifier = 0;
         this->states_.push_back(std::move(root));
     }

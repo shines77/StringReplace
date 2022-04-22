@@ -57,8 +57,8 @@ public:
     typedef std::size_t     size_type;
     typedef std::uint32_t   ident_t;
 
-    static const ident_t kInvalidLink = 0;
-    static const ident_t kRootLink = 1;
+    static const ident_t kInvalidIdent = 0;
+    static const ident_t kRootIdent = 1;
 
     static const size_type kMaxAscii = 256;
     static const std::uint32_t kPatternIdMask = 0x7FFFFFFFu;
@@ -115,19 +115,23 @@ public:
     }
 
     bool is_valid_id(ident_t identifier) const {
-        return ((identifier != kInvalidLink) && (identifier < this->max_state_id()));
+        return ((identifier != kInvalidIdent) && (identifier < this->max_state_id()));
     }
 
-    size_type state_count() const {
+    size_type size() const {
         return this->states_.size();
     }
 
-    const State & state(size_type index) {
+    State & states(size_type index) {
+        return this->states_[index];
+    }
+
+    const State & states(size_type index) const {
         return this->states_[index];
     }
 
     ident_t root() const {
-        return kRootLink;
+        return kRootIdent;
     }
 
     void clear() {
@@ -151,7 +155,7 @@ public:
                 cur_state.children.insert(std::make_pair(label, child));
 
                 State child_state;
-                child_state.fail_link = kInvalidLink;
+                child_state.fail_link = kInvalidIdent;
                 child_state.identifier = 0;
                 this->states_.push_back(child_state);
 
@@ -221,7 +225,7 @@ public:
                 if (likely(cur != root)) {
                     ident_t node = cur_state.fail_link;
                     do {
-                        if (likely(node != kInvalidLink)) {
+                        if (likely(node != kInvalidIdent)) {
                             State & node_state = this->states_[node];
                             auto node_iter = node_state.children.find(label);
                             if (likely(node_iter == node_state.children.end())) {
@@ -393,13 +397,13 @@ private:
 
         // Append dummy state for invalid link, Identifier = 0
         State dummy;
-        dummy.fail_link = kInvalidLink;
+        dummy.fail_link = kInvalidIdent;
         dummy.identifier = 0;
         this->states_.push_back(std::move(dummy));
 
         // Append root state, Identifier = 1
         State root;
-        root.fail_link = kInvalidLink;
+        root.fail_link = kInvalidIdent;
         root.identifier = 0;
         this->states_.push_back(std::move(root));
     }

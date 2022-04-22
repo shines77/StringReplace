@@ -58,7 +58,7 @@ void v1_AcTire_test()
 
     ac_trie.build();
 
-    printf("v1::AcTrie<char>: ac_trie.state(30).is_final = %u\n\n", ac_trie.state(30).is_final);
+    printf("v1::AcTrie<char>: ac_trie.states(30).is_final = %u\n\n", ac_trie.states(30).is_final);
 }
 
 void v1_AcTireW_test()
@@ -73,7 +73,7 @@ void v1_AcTireW_test()
 
     ac_trie.build();
 
-    printf("v1::AcTrie<wchar_t>: ac_trie.state(30).is_final = %u\n\n", ac_trie.state(30).is_final);
+    printf("v1::AcTrie<wchar_t>: ac_trie.states(30).is_final = %u\n\n", ac_trie.states(30).is_final);
 }
 
 void preprocessing_dict_file(const std::string & dict_kv,
