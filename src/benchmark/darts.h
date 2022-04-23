@@ -471,7 +471,8 @@ public:
             ident_t child = base + label;
             assert(this->is_valid_child(child));
             State & child_state = this->states_[child];
-            if (likely((child_state.check == cur) && this->is_allocated_child(child))) {
+            //if (likely((child_state.check == cur) && this->is_allocated_child(child))) {
+            if (likely(child_state.check == cur)) {
                 cur = child;
                 text++;
             } else {
@@ -524,7 +525,8 @@ public:
                 ident_t child = base + label;
                 assert(this->is_valid_child(child));
                 State & child_state = this->states_[child];
-                if (likely((child_state.check == cur) && this->is_allocated_child(child))) {
+                //if (likely((child_state.check == cur) && this->is_allocated_child(child))) {
+                if (likely(child_state.check == cur)) {
                     cur = child;
                 } else {
                     goto MatchNextLabel;
@@ -538,7 +540,8 @@ public:
                     ident_t child = base + label;
                     assert(this->is_valid_child(child));
                     State & child_state = this->states_[child];
-                    if (likely((child_state.check != cur) || this->is_free_child(child))) {
+                    //if (likely((child_state.check != cur) || this->is_free_child(child))) {
+                    if (likely(child_state.check != cur)) {
                         if (likely(cur != root)) {
                             cur = cur_state.fail_link;
                         } else {
