@@ -143,7 +143,7 @@ void benchmark(const std::string & dict_file,
 
 #ifndef _DEBUG
 
-#if 0
+#if 1
     sw.start();
     ac_bench::StringReplace<v1::AcTrie<char>>("ac1", dict_file, input_file, output_file);
     sw.stop();

@@ -191,7 +191,7 @@ public:
 
     bool is_free_state(ident_t index) const {
         const State & state = this->states_[index];
-        return (state.base == 0 && state.check == 0);
+        return ((state.base == 0) && (state.check == 0));
     }
 
     ident_t first_free_id() const {
@@ -413,13 +413,12 @@ public:
                     if (likely(cur != root)) {
                         ident_t node = cur_state.fail_link;
                         do {
-                            if (likely((node != kInvalidIdent) && this->is_valid_child(node) && !this->is_free_state(node))) {
+                            if (likely((node != kInvalidIdent) && this->is_valid_id(node))) {
                                 State & node_state = this->states_[node];
                                 ident_t node_child = node_state.base + label;
                                 if (likely(node_child != kInvalidIdent) && this->is_valid_child(node_child)) {
                                     State & node_child_state = this->states_[node_child];
-                                    if (likely(node_child_state.check != node_state.base ||
-                                               this->is_free_state(node_child))) {
+                                    if (likely(node_child_state.check != node || this->is_free_child(node_child))) {
                                         // node = node->fail;
                                         node = node_state.fail_link;
                                     }
