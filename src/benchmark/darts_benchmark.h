@@ -229,6 +229,7 @@ int StringReplace(const std::string & name,
     };
 
     ac_trie.build();
+    ac_trie.clear_ac_trie();
 
     sw.stop();
 

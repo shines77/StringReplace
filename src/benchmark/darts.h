@@ -222,6 +222,10 @@ public:
         this->create_root();
     }
 
+    void clear_ac_trie() {
+        this->acTrie_.clear();
+    }
+
     bool insert(const uchar_type * pattern, size_type length, std::uint32_t id) {
         return this->acTrie_.insert(pattern, length, id);
     }
@@ -293,8 +297,9 @@ public:
             State & cur_state = this->states_[cur];
 
             std::size_t nums_child = cur_ac_state.children.size();
-            cur_state.pattern_id = cur_ac_state.pattern_id;
-            cur_state.is_final = cur_ac_state.is_final;
+            cur_state.identifier = cur_ac_state.identifier;
+            //cur_state.pattern_id = cur_ac_state.pattern_id;
+            //cur_state.is_final = cur_ac_state.is_final;
             cur_state.has_child = (nums_child != 0) ? 1 : 0;
 
             if (nums_child > 0) {
@@ -405,15 +410,16 @@ public:
 
                     State & child_state = this->states_[child];
                     child_state.check = cur;
-                    child_state.is_final = child_ac_state.is_final;
+                    child_state.identifier = child_ac_state.identifier;
+                    //child_state.is_final = child_ac_state.is_final;
+                    //child_state.pattern_id = child_ac_state.pattern_id;
                     child_state.has_child = (child_ac_state.children.size() != 0) ? 1 : 0;
-                    child_state.pattern_id = child_ac_state.pattern_id;
-                    //child_state.identifier = child_ac_state.identifier;
 
                     if (likely(cur != root)) {
                         ident_t node = cur_state.fail_link;
                         do {
-                            if (likely((node != kInvalidIdent) && this->is_valid_id(node))) {
+                            if (likely(node != kInvalidIdent)) {
+                                assert(this->is_valid_id(node));
                                 State & node_state = this->states_[node];
                                 ident_t node_child = node_state.base + label;
                                 if (likely(node_child != kInvalidIdent) && this->is_valid_child(node_child)) {
