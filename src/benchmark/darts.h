@@ -131,8 +131,32 @@ public:
         return static_cast<ident_t>(this->states_.size() - 1);
     }
 
+#ifdef _DEBUG
+
     bool is_valid_id(ident_t identifier) const {
         return ((identifier != kInvalidIdent) && (identifier < this->max_state_id()));
+    }
+
+    bool is_valid_base(ident_t identifier) const {
+        return ((identifier > kRootIdent) && (identifier < this->max_state_id()) && ((identifier & kSignMask) == 0));
+    }
+
+    bool is_valid_child(ident_t identifier) const {
+        return ((identifier > kRootIdent) && (identifier < this->max_state_id()));
+    }
+
+    bool is_free_child(ident_t identifier) const {
+        return ((identifier > kRootIdent) && (identifier < this->max_state_id()) && this->is_free_state(identifier));
+    }
+
+    bool is_allocated_child(ident_t identifier) const {
+        return ((identifier > kRootIdent) && (identifier < this->max_state_id()) && !this->is_free_state(identifier));
+    }
+
+#else
+
+    bool is_valid_id(ident_t identifier) const {
+        return (identifier != kInvalidIdent);
     }
 
     bool is_valid_base(ident_t identifier) const {
@@ -140,12 +164,18 @@ public:
     }
 
     bool is_valid_child(ident_t identifier) const {
-        return ((identifier > kRootIdent) && (identifier < this->max_state_id()));
+        return (identifier > kRootIdent);
+    }
+
+    bool is_free_child(ident_t identifier) const {
+        return ((identifier > kRootIdent) && this->is_free_state(identifier));
     }
 
     bool is_allocated_child(ident_t identifier) const {
-        return ((identifier > kRootIdent) && (identifier < this->max_state_id()) && !this->is_free_state(identifier));
+        return ((identifier > kRootIdent) && !this->is_free_state(identifier));
     }
+
+#endif // _DEBUG
 
     size_type size() const {
         return this->states_.size();
@@ -370,11 +400,11 @@ public:
                     }
 
                     ident_t child = base + label;
-                    assert(this->is_valid_id(child));
+                    assert(this->is_valid_child(child));
                     assert(this->is_free_state(child));
 
                     State & child_state = this->states_[child];
-                    child_state.check = base;
+                    child_state.check = cur;
                     child_state.is_final = child_ac_state.is_final;
                     child_state.has_child = (child_ac_state.children.size() != 0) ? 1 : 0;
                     child_state.pattern_id = child_ac_state.pattern_id;
@@ -436,13 +466,13 @@ public:
         ident_t cur = root;
         while (text < text_last) {
             std::uint32_t label = (uchar_type)*text;
-            assert(this->is_valid_id(cur));
+            assert(this->is_valid_child(cur));
             State & cur_state = this->states_[cur];
             ident_t base = cur_state.base;
             ident_t child = base + label;
             assert(this->is_valid_child(child));
             State & child_state = this->states_[child];
-            if (likely((child_state.check == base) && !this->is_free_state(child))) {
+            if (likely((child_state.check == cur) && this->is_allocated_child(child))) {
                 cur = child;
                 text++;
             } else {
@@ -495,7 +525,7 @@ public:
                 ident_t child = base + label;
                 assert(this->is_valid_child(child));
                 State & child_state = this->states_[child];
-                if (likely((child_state.check == base) && !this->is_free_state(child))) {
+                if (likely((child_state.check == cur) && this->is_allocated_child(child))) {
                     cur = child;
                 } else {
                     goto MatchNextLabel;
@@ -503,12 +533,13 @@ public:
             } else {
                 do {
                     assert(this->is_valid_id(cur));
+                    assert((cur == root) || ((cur != root) && !this->is_free_state(cur)));
                     State & cur_state = this->states_[cur];
                     ident_t base = cur_state.base;
                     ident_t child = base + label;
                     assert(this->is_valid_child(child));
                     State & child_state = this->states_[child];
-                    if (likely((child_state.check != base) || this->is_free_state(child))) {
+                    if (likely((child_state.check != cur) || this->is_free_child(child))) {
                         if (likely(cur != root)) {
                             cur = cur_state.fail_link;
                         } else {
@@ -526,6 +557,8 @@ public:
 
             do {
                 State & node_state = this->states_[node];
+                assert(this->is_valid_id(node));
+                assert(!this->is_free_state(node));
                 if (unlikely(node_state.is_final != 0)) {
                     // Matched
                     matchInfo.last_pos   = (std::uint32_t)(text + 1 - text_first);
