@@ -189,7 +189,7 @@ public:
         return this->states_[index];
     }
 
-    bool is_free_state(ident_t index) const {
+    inline bool is_free_state(ident_t index) const {
         const State & state = this->states_[index];
         return ((state.base == 0) && (state.check == 0));
     }

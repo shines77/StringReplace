@@ -385,8 +385,8 @@ int StringReplace(const std::string & name,
             short_keys.clear();
 
             std::size_t totalReadBytes = readInputChunk(ifs, input_chunk, input_offset,
-                                                        kReadChunkSize - input_offset);
-            if (totalReadBytes != 0) {
+                                                        kReadChunkSize);
+            if (totalReadBytes > 0) {
 #if USE_READ_WRITE_STATISTICS
                 globalReadBytes += totalReadBytes;
                 globalReadCount++;

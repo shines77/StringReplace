@@ -273,8 +273,8 @@ int StringReplace(const std::string & name,
 
         do {
             std::size_t totalReadBytes = readInputChunk(ifs, input_chunk, input_offset,
-                                                        kReadChunkSize - input_offset);
-            if (totalReadBytes != 0) {
+                                                        kReadChunkSize);
+            if (totalReadBytes > 0) {
 #if USE_READ_WRITE_STATISTICS
                 globalReadBytes += totalReadBytes;
                 globalReadCount++;
@@ -294,8 +294,6 @@ int StringReplace(const std::string & name,
                 input_chunk_last = (last_newline == nullptr) ? actualInputChunkBytes
                                  : (last_newline - input_chunk.c_str() + 1);
 #endif
-
-
                 //char saveChar = input_chunk[input_chunk_last];
                 //input_chunk[input_chunk_last] = '\0';
                 std::size_t output_offset = writeBufSize;
