@@ -2,7 +2,7 @@
 # REQUIRES SUDO
 
 #
-# usage:  $ sudo ramdisk.sh [capacity=1024m] [mount_path=/ramdisk]
+# usage:  $ sudo ramdisk.sh [capacity=1024m] [mount_path=/ramdisk] [label=ramdisk]
 # mount a ramdisk device with given capacity and path
 #
 
@@ -42,14 +42,42 @@ if [ -n "${2}" ]; then
     mount_path="${2}"
 fi
 
-sudo mkdir -p "${mount_path}"
-sudo chmod 777 "${mount_path}"
+label="ramdisk"
+if [ -n "${3}" ]; then
+    label="${3}"
+fi
 
-set -x
-sudo mount -t tmpfs -o size="${capacity}" ramdisk "${mount_path}"
-# set +x
+HasMounted=`df -h | grep "${mount_path}"`
 
-sudo mount | tail -n 1
+if [ -n "${HasMounted}" ]; then
+    if [ !-d "${mount_path}" ]; then
+        sudo mkdir -p "${mount_path}"
+        sudo chmod 777 "${mount_path}"
+    fi
+
+    ##
+    ## [ramfs] (This filesystem type can't set the capacity size)
+    ##
+    ##   See: https://developer.aliyun.com/article/746214
+    ##
+    ##   mount -t ramfs ramfs /mnt/ramdisk -o noatime,nodiratime,rw,data=writeback,nodelalloc,nobarrier
+    ##
+
+    set -x
+    sudo mount -t tmpfs -o size="${capacity}" "${label}" "${mount_path}"
+    set +x
+
+    sudo mount | tail -n 5
+else
+    sudo mount | tail -n 5
+    echo ""
+    echo "----------------------------------------------------------------"
+    echo " Label=${label}, Mount point=${mount_path} have mounted."
+    echo "----------------------------------------------------------------"
+    echo ""
+fi
+
+sudo mount | tail -n 5
 
 DATA_DIR=$(cd ../data; pwd)
 if [ -d "${DATA_DIR}" ]; then
