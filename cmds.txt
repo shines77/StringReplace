@@ -29,3 +29,13 @@ Linux:
 ------------------------------------------------------------------------------------
 
 ./tools/benchmark.sh -n 10 -o /ramdisk/bench/results.csv -c ./StringReplace /ramdisk/dict.txt /ramdisk/video_title.txt /ramdisk/output_result.txt
+
+------------------------------------
+
+Test RAM disk read speed: (must run write test first)
+
+sudo dd if=/ramdisk/zero of=/dev/null bs=4k count=10000
+
+Test RAM disk write speed:
+
+sudo dd if=/dev/zero of=/ramdisk/zero bs=4k count=10000

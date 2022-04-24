@@ -86,7 +86,7 @@ else
     echo ""
 fi
 
-DATA_DIR=$(cd ../data; pwd)
+DATA_DIR=$(cd "${SCRIPT_DIR}"; cd ../data; pwd)
 if [ -d "${DATA_DIR}" ]; then
     cp -t "${mount_path}" "${DATA_DIR}"/*.txt
     echo "All text files under [ ${DATA_DIR} ] have been copied to [ ${mount_path} ]."
