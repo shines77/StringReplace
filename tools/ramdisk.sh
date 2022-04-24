@@ -47,10 +47,10 @@ if [ -n "${3}" ]; then
     label="${3}"
 fi
 
-HasMounted=`df -h | grep $mount_path`
+HasMounted=`df -h | grep "${mount_path}"`
 echo "HasMounted = ${HasMounted}"
 
-if [ -n "${HasMounted}" ]; then
+if [ -z "${HasMounted}" ]; then
     if [ ! -d "${mount_path}" ]; then
         sudo mkdir -p "${mount_path}"
         sudo chmod 777 "${mount_path}"
