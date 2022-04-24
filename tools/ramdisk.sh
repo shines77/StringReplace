@@ -47,6 +47,11 @@ if [ -n "${3}" ]; then
     label="${3}"
 fi
 
+##
+## "$?" is the grep result
+## grep 'match_word' file ; echo $?
+##
+
 HasMounted=`df -h | grep "${mount_path}"`
 # echo "HasMounted = ${HasMounted}"
 
@@ -76,7 +81,7 @@ else
     sudo mount | tail -n 3
     echo ""
     echo "--------------------------------------------------------------------"
-    echo " Label = [ ${label} ], Mount-point = [ ${mount_path} ] have mounted."
+    echo " Label: [ ${label} ], Mount-point: [ ${mount_path} ] have mounted."
     echo "--------------------------------------------------------------------"
     echo ""
 fi
