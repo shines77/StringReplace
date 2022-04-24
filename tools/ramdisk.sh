@@ -48,7 +48,7 @@ if [ -n "${3}" ]; then
 fi
 
 HasMounted=`df -h | grep "${mount_path}"`
-echo "HasMounted = ${HasMounted}"
+# echo "HasMounted = ${HasMounted}"
 
 if [ -z "${HasMounted}" ]; then
     if [ ! -d "${mount_path}" ]; then
