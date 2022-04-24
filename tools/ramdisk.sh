@@ -51,9 +51,9 @@ set +x
 
 sudo mount | tail -n 1
 
-if [ -d "${SCRIPT_DIR}../data" ]; then
-    cp "${SCRIPT_DIR}../data/*.txt" "${mount_path}"
-    echo "All text files of [${SCRIPT_DIR}../data] folder have been copied to [${mount_path}]."
+if [ -d "${SCRIPT_DIR}/../data" ]; then
+    cp "${SCRIPT_DIR}/../data/*.txt" "${mount_path}"
+    echo "All text files of [${SCRIPT_DIR}/../data] folder have been copied to [${mount_path}]."
 else
-    echo "[${SCRIPT_DIR}../data] folder is not exists."
+    echo "[${SCRIPT_DIR}/../data] folder is not exists."
 fi
