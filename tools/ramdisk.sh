@@ -51,10 +51,9 @@ sudo mount -t tmpfs -o size="${capacity}" ramdisk "${mount_path}"
 
 sudo mount | tail -n 1
 
-# DATA_DIR="$SCRIPT_DIR/../data"
 DATA_DIR=$(cd ../data; pwd)
 if [ -d "${DATA_DIR}" ]; then
-    cp "$DATA_DIR/*.txt" "${mount_path}"
+    cp -t "${mount_path}" "${DATA_DIR}"/*.txt
     echo "All text files under [ ${DATA_DIR} ] have been copied to [ ${mount_path} ]."
 else
     echo "Folder [ ${DATA_DIR} ] is not exists."
