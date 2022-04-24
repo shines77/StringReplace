@@ -69,8 +69,8 @@ do
             run_tests
             ;;
         \?)
-            echo 'Usage: -n [repeats], -o [output_file], -c [command_to_run]."
-            echo "No arguments supplied.'
+            echo 'Usage: -n [repeats], -o [output_file], -c [command_to_run].'
+            echo 'No arguments supplied.'
             exit 1
             ;;
     esac
