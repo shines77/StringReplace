@@ -42,5 +42,14 @@
     <ClInclude Include="..\..\..\src\benchmark\darts.h">
       <Filter>src\benchmark</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\src\benchmark\AhoCorasick_utf8.h">
+      <Filter>src\benchmark</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\src\benchmark\darts_utf8.h">
+      <Filter>src\benchmark</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\src\benchmark\utf8_utils.h">
+      <Filter>src\benchmark</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

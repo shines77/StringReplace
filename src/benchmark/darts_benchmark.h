@@ -33,6 +33,7 @@
 #include "benchmark.h"
 #include "win_iconv.h"
 #include "darts.h"
+#include "darts_utf8.h"
 
 //
 // See: https://www.cnblogs.com/zhangchaoyang/articles/4508266.html
