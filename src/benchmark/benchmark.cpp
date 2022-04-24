@@ -165,7 +165,7 @@ void benchmark(const std::string & dict_file,
 
 #ifndef _DEBUG
 
-#if 1
+#if 0
     sw.start();
     darts_bench::StringReplace<darts_bench::Darts<char>>("darts", dict_file, input_file, output_file);
     sw.stop();
