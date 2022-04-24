@@ -56,7 +56,7 @@ namespace utf8 {
     if ((str[i] & 0xc0) != 0x80)
         length++;
 
-    Utf-8 encoding Online: https://tool.oschina.net/encode?type=4
+    Utf-8 encoding online: https://tool.oschina.net/encode?type=4
 
 *******************************************************************************/
 

@@ -16,8 +16,16 @@ Windows:
 
 Linux:
 
+./StringReplace /ramdisk/dict.txt /ramdisk/video_title.txt /ramdisk/output_result.txt
+
+./StringReplace /ramdisk/dict.txt /ramdisk/video_title_small.txt /ramdisk/output_result.txt
+
+------------------------------------
+
 ./StringReplace ./data/dict.txt ./data/video_title.txt ./output_result.txt
 
 ./StringReplace ./data/dict.txt ./data/video_title_small.txt ./output_result.txt
 
 ------------------------------------------------------------------------------------
+
+./tools/benchmark.sh -n 10 -o /ramdisk/bench/results.csv -c ./StringReplace /ramdisk/dict.txt /ramdisk/video_title.txt /ramdisk/output_result.txt
