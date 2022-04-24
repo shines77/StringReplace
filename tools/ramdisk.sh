@@ -47,13 +47,14 @@ sudo chmod 777 "${mount_path}"
 
 set -x
 sudo mount -t tmpfs -o size="${capacity}" ramdisk "${mount_path}"
-set +x
+# set +x
 
 sudo mount | tail -n 1
 
-if [ -d "${SCRIPT_DIR}/../data" ]; then
-    cp "${SCRIPT_DIR}/../data/*.txt" "${mount_path}"
-    echo "All text files of [${SCRIPT_DIR}/../data] folder have been copied to [${mount_path}]."
+DATA_DIR=`${SCRIPT_DIR}/../data`
+if [ -d "${DATA_DIR}" ]; then
+    cp '${DATA_DIR}/*.txt' '${mount_path}'
+    echo "All text files under [ ${DATA_DIR} ] have been copied to [ ${mount_path} ]."
 else
-    echo "[${SCRIPT_DIR}/../data] folder is not exists."
+    echo "Folder [ ${DATA_DIR} ] is not exists."
 fi
