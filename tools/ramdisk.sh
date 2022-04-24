@@ -47,10 +47,11 @@ if [ -n "${3}" ]; then
     label="${3}"
 fi
 
-HasMounted=`df -h | grep "${mount_path}"`
+HasMounted=`df -h | grep $mount_path`
+echo "HasMounted = ${HasMounted}"
 
 if [ -n "${HasMounted}" ]; then
-    if [ !-d "${mount_path}" ]; then
+    if [ ! -d "${mount_path}" ]; then
         sudo mkdir -p "${mount_path}"
         sudo chmod 777 "${mount_path}"
     fi
@@ -67,17 +68,19 @@ if [ -n "${HasMounted}" ]; then
     sudo mount -t tmpfs -o size="${capacity}" "${label}" "${mount_path}"
     set +x
 
-    sudo mount | tail -n 5
+    echo ""
+    sudo mount | tail -n 3
+    echo ""
 else
-    sudo mount | tail -n 5
+    echo ""
+    sudo mount | tail -n 3
+    echo ""
     echo ""
     echo "----------------------------------------------------------------"
     echo " Label=${label}, Mount point=${mount_path} have mounted."
     echo "----------------------------------------------------------------"
     echo ""
 fi
-
-sudo mount | tail -n 5
 
 DATA_DIR=$(cd ../data; pwd)
 if [ -d "${DATA_DIR}" ]; then
