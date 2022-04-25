@@ -553,7 +553,6 @@ public:
         ident_t cur = root;
         bool matched = false;
 
-MatchNextLabel:
         while (text < text_last) {
             ident_t node;
             std::size_t skip;
@@ -630,6 +629,9 @@ MatchNextLabel:
                 }
                 node = node_state.fail_link;
             } while (node != root);
+
+MatchNextLabel:
+            (void)0;
         }
 
         return matched;
@@ -657,7 +659,6 @@ MatchNextLabel:
         matchList.clear();
         assert(cbGetPatternLen);
 
-MatchNextLabel:
         while (text < text_last) {
             ident_t node;
             std::size_t skip;
@@ -743,6 +744,9 @@ MatchNextLabel:
                 }
                 node = node_state.fail_link;
             } while (node != root);
+
+MatchNextLabel:
+            (void)0;
         }
     }
 

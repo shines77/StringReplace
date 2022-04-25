@@ -135,8 +135,7 @@ std::size_t replaceInputChunkText(AcTrieT & acTrie,
     uint8_t * output_start = output;
 
     std::size_t line_no = 0;
-    std::size_t offset = 0;
-    uint8_t * line_first = (uint8_t *)input_chunk.c_str() + offset;
+    uint8_t * line_first = (uint8_t *)input_chunk.c_str();
     uint8_t * line_last;
 
     typedef typename AcTrieT::MatchInfoEx MatchInfoEx;
@@ -147,7 +146,6 @@ std::size_t replaceInputChunkText(AcTrieT & acTrie,
 
     while (line_first < input_end) {
 #if 0
-        //std::size_t newline = input_chunk.find_first_of('\n', offset);
         line_last = StrUtils::find(line_first, input_end, uint8_t('\n'));
 #else
         size_t length = (size_t)(input_end - line_first) * sizeof(uint8_t);
@@ -181,6 +179,7 @@ std::size_t replaceInputChunkText(AcTrieT & acTrie,
                 while (line_first < line_mid) {
                     *output++ = *line_first++;
                 }
+
 #if defined(_MSC_VER)
                 int valueType = dict_info.second;
                 std::size_t valueLength = ValueType::length(valueType);
