@@ -29,6 +29,7 @@
 #include <vector>
 #include <set>
 #include <map>
+#include <unordered_map>
 #include <functional>
 #include <utility>
 #include <algorithm>
@@ -68,7 +69,8 @@ public:
     static const ident_t kRootIdent = 1;
     static const ident_t kFirstFreeIdent = 2;
 
-    static const size_type kMaxAscii = 65536;
+    static const size_type kMaxAscii = 65536;   // 0x0000FFFFu
+    static const size_type kMaxLabel = 0x0010FFFFu;
 
     static const std::uint32_t kPatternIdMask = 0x7FFFFFFFu;
     static const std::uint32_t kHasChildMask = 0x40000000u;
@@ -130,6 +132,7 @@ public:
 
 private:
     std::vector<state_type> states_;
+    std::unordered_map<std::uint64_t, std::uint32_t> overflow_labels_;
 
     ident_t first_free_id_;
     ident_t last_free_id_;
@@ -241,15 +244,19 @@ public:
     }
 
     void clear() {
-        this->acTrie_.clear();
-
-        this->states_.clear();
-        this->states_.reserve(2);
-        this->create_root();
+        this->clear_ac_trie();
+        this->clear_trie();
     }
 
     void clear_ac_trie() {
         this->acTrie_.clear();
+    }
+
+    void clear_trie(size_type capacity = 2) {
+        capacity = (capacity < 2) ? 2: capacity;
+        this->states_.clear();
+        this->states_.reserve(capacity);
+        this->create_root();
     }
 
     bool insert(const uchar_type * pattern, size_type length, std::uint32_t id) {
@@ -296,7 +303,7 @@ public:
         return kInvalidIdent;
     }
 
-    void build() {
+    bool build() {
         std::vector<ident_t> ac_queue;
         std::vector<ident_t> queue;
         ac_queue.reserve(this->acTrie_.size());
@@ -305,7 +312,7 @@ public:
         size_type state_capacity = (size_type)((double)this->acTrie_.size() * 1.1);
         if (state_capacity < (kFirstFreeIdent + kMaxAscii))
             state_capacity = (kFirstFreeIdent + kMaxAscii) + 1024;
-        this->states_.reserve(state_capacity);
+        this->clear_trie(state_capacity);
         this->states_.resize(this->acTrie_.size());
 
         ident_t root_ac = this->acTrie_.root();
@@ -313,6 +320,8 @@ public:
 
         ident_t root = this->root();
         queue.push_back(root);
+
+        bool has_overflow_labels = false;
 
         size_type head = 0;
         size_type first_children = 0;
@@ -362,6 +371,8 @@ public:
                         for (auto iter = cur_ac_state.children.begin();
                             iter != cur_ac_state.children.end(); ++iter) {
                             std::uint32_t label = iter->first;
+                            if (label >= kMaxAscii)
+                                continue;
                             ident_t child = base + label;
                             if (child < this->states_.size()) {
                                 if (!this->is_free_state(child)) {
@@ -433,9 +444,19 @@ public:
                         child_ac_state.fail_link = root_ac;
                     }
 
-                    ident_t child = base + label;
-                    assert(this->is_valid_child(child));
-                    assert(this->is_free_state(child));
+                    ident_t child;
+                    if (label < kMaxAscii) {
+                        child = base + label;
+                        assert(this->is_valid_child(child));
+                        assert(this->is_free_state(child));
+                    } else {
+                        first_free = this->find_first_free_state();
+                        child = first_free;
+                        std::uint64_t ident_and_label = ((std::uint64_t)cur << 32u) | label;
+                        assert(this->overflow_labels_.count(ident_and_label) == 0);
+                        this->overflow_labels_.insert(std::make_pair(ident_and_label, child));
+                        has_overflow_labels = true;
+                    }
 
                     State & child_state = this->states_[child];
                     child_state.check = cur;
@@ -487,6 +508,8 @@ public:
                 assert(cur_state->base == 0);
             }
         }
+
+        return has_overflow_labels;
     }
 
     inline

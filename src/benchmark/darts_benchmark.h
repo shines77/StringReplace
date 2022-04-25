@@ -258,7 +258,7 @@ int StringReplace(const std::string & name,
         index++;
     };
 
-    ac_trie.build();
+    bool has_overflow_labels = ac_trie.build();
 
     sw.stop();
 

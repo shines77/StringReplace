@@ -281,7 +281,7 @@ public:
         return kInvalidIdent;
     }
 
-    void build() {
+    bool build() {
         std::vector<ident_t> ac_queue;
         std::vector<ident_t> queue;
         ac_queue.reserve(this->acTrie_.size());
@@ -466,6 +466,8 @@ public:
                 }
             }
         }
+
+        return false;
     }
 
     inline

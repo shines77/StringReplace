@@ -136,8 +136,13 @@ public:
     }
 
     void clear() {
+        this->clear_trie();
+    }
+
+    void clear_trie(size_type capacity = 2) {
+        capacity = (capacity < 2) ? 2: capacity;
         this->states_.clear();
-        this->states_.reserve(2);
+        this->states_.reserve(capacity);
         this->create_root();
     }
 
