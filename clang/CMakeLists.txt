@@ -5,9 +5,9 @@ project(StringReplace)
 set(CMAKE_ALLOW_LOOSE_LOOP_CONSTRUCTS ON)
 
 set(CMAKE_VERBOSE_MAKEFILE ON)
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/../cmake/Modules/")
 
-include("${PROJECT_SOURCE_DIR}/cmake/detect_cpu_architectures.cmake")
+include("${PROJECT_SOURCE_DIR}/../cmake/detect_cpu_architectures.cmake")
 
 enable_language(ASM_NASM)
 
