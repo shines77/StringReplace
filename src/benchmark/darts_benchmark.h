@@ -200,11 +200,103 @@ std::size_t replaceInputChunkText(AcTrieT & acTrie,
         }
 
         line_no++;
-#ifdef _DEBUG
-        if (line_no == 430) {
-            line_no = line_no;
-        }
+
+        // Next line
+        line_first = line_last + 1;
+        if (line_last != input_end)
+            *output++ = '\n';
+        else
+            break;
+    }
+
+    assert(output >= output_start);
+    return std::size_t(output - output_start);
+}
+
+template <typename AcTrieT>
+std::size_t replaceInputChunkTextEx(AcTrieT & acTrie,
+                                    std::vector<std::pair<std::string, int>> & dict_list,
+                                    std::string & input_chunk, std::size_t input_chunk_size,
+                                    std::string & output_chunk, std::size_t output_offset)
+{
+    uint8_t * input_end = (uint8_t *)input_chunk.c_str() + input_chunk_size;
+    uint8_t * output = (uint8_t *)output_chunk.c_str() + output_offset;
+    uint8_t * output_start = output;
+
+    std::size_t line_no = 0;
+    uint8_t * line_first = (uint8_t *)input_chunk.c_str();
+    uint8_t * line_last;
+
+    typedef typename AcTrieT::MatchInfo MatchInfo;
+    typedef typename AcTrieT::MatchInfoEx MatchInfoEx;
+
+    std::vector<MatchInfoEx> matchList;
+    static typename AcTrieT::on_hit_callback onHit_callback =
+        std::bind(&getPatternLength, std::placeholders::_1, dict_list);
+
+    while (line_first < input_end) {
+#if 0
+        line_last = StrUtils::find(line_first, input_end, uint8_t('\n'));
+#else
+        size_t length = (size_t)(input_end - line_first) * sizeof(uint8_t);
+        line_last = (uint8_t *)std::memchr(line_first, '\n', length);
 #endif
+        if (line_last == nullptr)
+            line_last = input_end;
+
+        acTrie.match_one(line_first, line_last, matchList, onHit_callback);
+
+        if (likely(matchList.size() == 0)) {
+            while (line_first < line_last) {
+                *output++ = *line_first++;
+            }
+        } else {
+            uint8_t * line_start = line_first;
+            for (auto iter = matchList.begin(); iter != matchList.end(); ++iter) {
+                const MatchInfoEx & matchInfo = *iter;
+                std::size_t match_begin = matchInfo.begin;
+                std::size_t match_end   = matchInfo.end;
+                std::size_t pattern_id  = matchInfo.pattern_id;
+                assert(pattern_id < dict_list.size());
+
+                const std::pair<std::string, int> & dict_info = dict_list[pattern_id];
+                const std::string & key = dict_info.first;
+                std::string ansi_key;
+                utf8_to_ansi(key, ansi_key);
+
+                assert(std::size_t(match_end - match_begin) == key.size());
+
+                uint8_t * line_mid = line_start + match_begin;
+                assert(line_first <= line_mid);
+                while (line_first < line_mid) {
+                    *output++ = *line_first++;
+                }
+
+#if defined(_MSC_VER)
+                int valueType = dict_info.second;
+                std::size_t valueLength = ValueType::length(valueType);
+                ValueType::writeType(output, valueType);
+                output += valueLength;
+#else
+                int valueType = dict_info.second;
+                uint8_t * value = (uint8_t *)ValueType::toString(valueType);
+                std::size_t valueLength = ValueType::length(valueType);
+
+                uint8_t * value_end = value + valueLength;
+                while (value < value_end) {
+                    *output++ = *value++;
+                }
+#endif
+                line_first += std::size_t(match_end - match_begin);
+            }
+
+            while (line_first < line_last) {
+                *output++ = *line_first++;
+            }
+        }
+
+        line_no++;
+
         // Next line
         line_first = line_last + 1;
         if (line_last != input_end)
@@ -327,7 +419,7 @@ int StringReplace(const std::string & name,
                 //char saveChar = input_chunk[input_chunk_last];
                 //input_chunk[input_chunk_last] = '\0';
                 std::size_t output_offset = writeBufSize;
-                std::size_t outputBytes = replaceInputChunkText<AcTrieT>(
+                std::size_t outputBytes = replaceInputChunkTextEx<AcTrieT>(
                                                 ac_trie, dict_list,
                                                 input_chunk, input_chunk_last,
                                                 output_chunk, output_offset);
@@ -359,7 +451,7 @@ int StringReplace(const std::string & name,
                     char saveChar = input_chunk[input_chunk_last];
                     input_chunk[input_chunk_last] = '\0';
                     std::size_t output_offset = writeBufSize;
-                    std::size_t outputBytes = replaceInputChunkText<AcTrieT>(
+                    std::size_t outputBytes = replaceInputChunkTextEx<AcTrieT>(
                                                     ac_trie, dict_list,
                                                     input_chunk, input_chunk_last,
                                                     output_chunk, output_offset);

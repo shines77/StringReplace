@@ -680,7 +680,7 @@ MatchNextLabel:
         ident_t cur = root;
 
         matchList.clear();
-        assert(cbGetPatternLen);
+        assert(onHit_callback);
 
         while (text < text_last) {
             ident_t node;
