@@ -27,6 +27,7 @@
 #include <cstring>
 #include <list>
 #include <vector>
+#include <functional>
 #include <utility>
 #include <algorithm>
 
@@ -105,6 +106,24 @@ void preprocessing_dict_file(const std::string & dict_kv,
     }
 }
 
+static
+std::size_t getPatternLength(std::uint32_t pattern_id,
+                             const std::vector<std::pair<std::string, int>> & dict_list)
+{
+    const std::pair<std::string, int> & pattern = dict_list[pattern_id];
+    const std::string & key = pattern.first;
+    return key.size();
+}
+
+static
+int getPatternType(std::uint32_t pattern_id,
+                   const std::vector<std::pair<std::string, int>> & dict_list)
+{
+    const std::pair<std::string, int> & pattern = dict_list[pattern_id];
+    int valueType = pattern.second;
+    return valueType;
+}
+
 template <typename AcTrieT>
 std::size_t replaceInputChunkText(AcTrieT & acTrie,
                                   std::vector<std::pair<std::string, int>> & dict_list,
@@ -119,6 +138,12 @@ std::size_t replaceInputChunkText(AcTrieT & acTrie,
     std::size_t offset = 0;
     uint8_t * line_first = (uint8_t *)input_chunk.c_str() + offset;
     uint8_t * line_last;
+
+    typedef typename AcTrieT::MatchInfoEx MatchInfoEx;
+    std::vector<MatchInfoEx> matchList;
+    typename AcTrieT::on_hit_callback onHit_callback =
+        std::bind(&getPatternLength, std::placeholders::_1, dict_list);
+    //acTrie.match_one(line_first, line_last, matchList, onHit_callback);
 
     while (line_first < input_end) {
 #if 0
@@ -140,7 +165,7 @@ std::size_t replaceInputChunkText(AcTrieT & acTrie,
                 }
                 break;
             } else {
-                std::size_t match_end = matchInfo.last_pos;
+                std::size_t match_end = matchInfo.end;
                 std::size_t pattern_id = matchInfo.pattern_id;
                 assert(pattern_id < dict_list.size());
 

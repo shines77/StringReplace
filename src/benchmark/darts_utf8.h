@@ -29,6 +29,7 @@
 #include <vector>
 #include <set>
 #include <map>
+#include <functional>
 #include <utility>
 #include <algorithm>
 #include <type_traits>
@@ -61,6 +62,8 @@ public:
     typedef typename AcTireT::size_type                     size_type;
     typedef typename AcTireT::ident_t                       ident_t;
 
+    typedef std::function<std::size_t (std::uint32_t)>      on_hit_callback;
+
     static const ident_t kInvalidIdent = 0;
     static const ident_t kRootIdent = 1;
     static const ident_t kFirstFreeIdent = 2;
@@ -92,8 +95,15 @@ public:
     };
 
     struct MatchInfo {
-        std::uint32_t last_pos;
+        std::uint32_t end;
         std::uint32_t pattern_id;
+    };
+
+    struct MatchInfoEx {
+        std::uint32_t begin;
+        std::uint32_t end;
+        std::uint32_t pattern_id;
+        std::uint32_t reserve;
     };
 
     #pragma pack(pop)
@@ -486,7 +496,7 @@ public:
                 text += skip;
             } else {
                 if ((cur != root) && (cur_state.is_final != 0)) {
-                    matchInfo.last_pos   = (std::uint32_t)(text - text_first);
+                    matchInfo.end        = (std::uint32_t)(text - text_first);
                     matchInfo.pattern_id = cur_state.pattern_id;
                     return true;
                 }
@@ -575,7 +585,7 @@ MatchNextLabel:
                 assert(!this->is_free_state(node));
                 if (unlikely(node_state.is_final != 0)) {
                     // Matched
-                    matchInfo.last_pos   = (std::uint32_t)(text - text_first);
+                    matchInfo.end        = (std::uint32_t)(text - text_first);
                     matchInfo.pattern_id = node_state.pattern_id;
                     if (node != cur) {
                         // If current full prefix is matched, judge the continous suffixs has some chars is matched?
@@ -583,7 +593,7 @@ MatchNextLabel:
                         MatchInfo matchInfo1;
                         bool matched1 = this->match_tail(cur, text, text_last, matchInfo1);
                         if (matched1) {
-                            matchInfo.last_pos  += matchInfo1.last_pos;
+                            matchInfo.end       += matchInfo1.end;
                             matchInfo.pattern_id = matchInfo1.pattern_id;
                             return true;
                         }
@@ -593,7 +603,7 @@ MatchNextLabel:
                         MatchInfo matchInfo2;
                         bool matched2 = this->match_tail(node, text, text_last, matchInfo2);
                         if (matched2) {
-                            matchInfo.last_pos  += matchInfo2.last_pos;
+                            matchInfo.end       += matchInfo2.end;
                             matchInfo.pattern_id = matchInfo2.pattern_id;
                         }
                     }
@@ -614,7 +624,9 @@ MatchNextLabel:
         return this->match_one((const uchar_type *)first, (const uchar_type *)last, matchInfo);
     }
 
-    bool match_one(const uchar_type * first, const uchar_type * last, std::vector<MatchInfo> & matchList) {
+    void match_one(const uchar_type * first, const uchar_type * last,
+                   std::vector<MatchInfoEx> & matchList,
+                   const on_hit_callback & onHit_callback) {
         uchar_type * text_first = (uchar_type *)first;
         uchar_type * text_last = (uchar_type *)last;
         uchar_type * text = text_first;
@@ -622,7 +634,9 @@ MatchNextLabel:
 
         ident_t root = this->root();
         ident_t cur = root;
-        bool matched = false;
+
+        matchList.clear();
+        assert(cbGetPatternLen);
 
 MatchNextLabel:
         while (text < text_last) {
@@ -673,7 +687,8 @@ MatchNextLabel:
                 assert(!this->is_free_state(node));
                 if (unlikely(node_state.is_final != 0)) {
                     // Matched
-                    matchInfo.last_pos   = (std::uint32_t)(text - text_first);
+                    MatchInfoEx matchInfo;
+                    matchInfo.end        = (std::uint32_t)(text - text_first);
                     matchInfo.pattern_id = node_state.pattern_id;
                     if (node != cur) {
                         // If current full prefix is matched, judge the continous suffixs has some chars is matched?
@@ -681,9 +696,12 @@ MatchNextLabel:
                         MatchInfo matchInfo1;
                         bool matched1 = this->match_tail(cur, text, text_last, matchInfo1);
                         if (matched1) {
-                            matchInfo.last_pos  += matchInfo1.last_pos;
+                            matchInfo.end       += matchInfo1.end;
                             matchInfo.pattern_id = matchInfo1.pattern_id;
-                            return true;
+                            size_type length = onHit_callback(matchInfo1.pattern_id);
+                            matchInfo.begin = matchInfo.end - (std::uint32_t)length;
+                            matchList.push_back(matchInfo);
+                            break;
                         }
                     }
                     if (node_state.base != 0) {
@@ -691,25 +709,30 @@ MatchNextLabel:
                         MatchInfo matchInfo2;
                         bool matched2 = this->match_tail(node, text, text_last, matchInfo2);
                         if (matched2) {
-                            matchInfo.last_pos  += matchInfo2.last_pos;
+                            matchInfo.end       += matchInfo2.end;
                             matchInfo.pattern_id = matchInfo2.pattern_id;
                         }
                     }
-                    return true;
+                    size_type length = onHit_callback(matchInfo.pattern_id);
+                    matchInfo.begin = matchInfo.end - (std::uint32_t)length;
+                    matchList.push_back(matchInfo);
+                    break;
                 }
                 node = node_state.fail_link;
             } while (node != root);
         }
-
-        return matched;
     }
 
-    bool match_one(const char_type * first, const char_type * last, std::vector<MatchInfo> & matchList) {
-        return this->match_one((const uchar_type *)first, (const uchar_type *)last, matchList);
+    void match_one(const char_type * first, const char_type * last,
+                   std::vector<MatchInfoEx> & matchList,
+                   const on_hit_callback & onHit_callback) {
+        return this->match_one((const uchar_type *)first, (const uchar_type *)last, matchList, onHit_callback);
     }
 
-    bool match_one(const schar_type * first, const schar_type * last, std::vector<MatchInfo> & matchList) {
-        return this->match_one((const uchar_type *)first, (const uchar_type *)last, matchList);
+    void match_one(const schar_type * first, const schar_type * last,
+                   std::vector<MatchInfoEx> & matchList,
+                   const on_hit_callback & onHit_callback) {
+        return this->match_one((const uchar_type *)first, (const uchar_type *)last, matchList, onHit_callback);
     }
 
 private:
