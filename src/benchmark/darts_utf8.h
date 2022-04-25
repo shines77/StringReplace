@@ -71,6 +71,7 @@ public:
     static const size_type kMaxAscii = 65536;
 
     static const std::uint32_t kPatternIdMask = 0x7FFFFFFFu;
+    static const std::uint32_t kHasChildMask = 0x40000000u;
     static const std::uint32_t kIsFinalMask = 0x80000000u;
     static const std::uint32_t kIsFreeMask = 0x80000000u;
 
@@ -95,13 +96,13 @@ public:
               union {
                 std::uint32_t   identifier;
                 struct {
-                  std::uint32_t pattern_id : 31;
+                  std::uint32_t pattern_id : 30;
+                  std::uint32_t has_child  : 1;
                   std::uint32_t is_final   : 1;
                 };
               };
             };
         };
-
 #if 1
         State() noexcept : is_free(0), extend(0) {
         }
@@ -326,6 +327,7 @@ public:
             cur_state->identifier = cur_ac_state.identifier;
             //cur_state->pattern_id = cur_ac_state.pattern_id;
             //cur_state->is_final = cur_ac_state.is_final;
+            cur_state->has_child = (nums_child != 0) ? 1 : 0;
 
             if (nums_child > 0) {
                 if (head == 1) {
@@ -440,6 +442,7 @@ public:
                     child_state.identifier = child_ac_state.identifier;
                     //child_state.is_final = child_ac_state.is_final;
                     //child_state.pattern_id = child_ac_state.pattern_id;
+                    child_state.has_child = (child_ac_state.children.size() != 0) ? 1 : 0;
 
                     if (likely(cur != root)) {
                         ident_t node = cur_state->fail_link;
@@ -550,6 +553,7 @@ public:
         ident_t cur = root;
         bool matched = false;
 
+MatchNextLabel:
         while (text < text_last) {
             ident_t node;
             std::size_t skip;
@@ -613,7 +617,7 @@ public:
                             return true;
                         }
                     }
-                    if (node_state.base != 0) {
+                    if (node_state.has_child != 0) {
                         // If a sub suffix exists, match the continous longest suffixs.
                         MatchInfo matchInfo2;
                         bool matched2 = this->match_tail(node, text, text_last, matchInfo2);
@@ -626,9 +630,6 @@ public:
                 }
                 node = node_state.fail_link;
             } while (node != root);
-
-MatchNextLabel:
-            (void *)0;
         }
 
         return matched;
@@ -656,6 +657,7 @@ MatchNextLabel:
         matchList.clear();
         assert(cbGetPatternLen);
 
+MatchNextLabel:
         while (text < text_last) {
             ident_t node;
             std::size_t skip;
@@ -723,7 +725,7 @@ MatchNextLabel:
                             break;
                         }
                     }
-                    if (node_state.base != 0) {
+                    if (node_state.has_child != 0) {
                         // If a sub suffix exists, match the continous longest suffixs.
                         MatchInfo matchInfo2;
                         bool matched2 = this->match_tail(node, text, text_last, matchInfo2);
@@ -741,9 +743,6 @@ MatchNextLabel:
                 }
                 node = node_state.fail_link;
             } while (node != root);
-
-MatchNextLabel:
-            (void *)0;
         }
     }
 
