@@ -34,6 +34,42 @@
 #include "StringMatch.h"
 #include "support/StopWatch.h"
 
+#ifndef __LITTLE_ENDIAN
+#define __LITTLE_ENDIAN     0
+#endif
+
+#ifndef __BIG_ENDIAN
+#define __BIG_ENDIAN        1
+#endif
+
+#ifndef __ENDIAN__
+#define __ENDIAN__  __LITTLE_ENDIAN
+#endif
+
+#if (__ENDIAN__ == __LITTLE_ENDIAN)
+
+#define MAKE_UINT16(A, B) \
+    ((uint16_t)(((B) & 0xFF) << 8u) | (uint16_t)((A) & 0xFF))
+
+#define MAKE_UINT32(A, B, C, D) \
+    (((uint32_t)MAKE_UINT16(C, D) << 16u) | (uint32_t)MAKE_UINT16(A, B))
+
+#define MAKE_UINT64(A, B, C, D, E, F, G, H) \
+    (((uint64_t)MAKE_UINT32(E, F, G, H) << 32u) | (uint64_t)MAKE_UINT32(A, B, C, D))
+
+#else
+
+#define MAKE_UINT16(A, B) \
+    ((uint16_t)(((A) & 0xFF) << 8u) | (uint16_t)((B) & 0xFF))
+
+#define MAKE_UINT32(A, B, C, D) \
+    (((uint32_t)MAKE_UINT16(A, B) << 16u) | (uint32_t)MAKE_UINT16(C, D))
+
+#define MAKE_UINT64(A, B, C, D, E, F, G, H) \
+    (((uint64_t)MAKE_UINT32(A, B, C, D) << 32u) | (uint64_t)MAKE_UINT32(E, F, G, H))
+
+#endif
+
 static const char * gValueText[4] = {
 #ifdef _MSC_VER
     u8"-*µçÓ°*-",
@@ -71,6 +107,16 @@ struct ValueType {
 #endif
     }
 
+    static const char * toString(int type) {
+        assert(type >= 0 && type <= kMaxType);
+        return gValueText[type];
+    };
+
+    static std::size_t length(int type) {
+        assert(type >= 0 && type <= kMaxType);
+        return gValueLength[type];
+    }
+
     static int parseValueType(const std::string & dict_kv, std::size_t first, std::size_t last) {
         assert(last > first);
         const char * value_start = &dict_kv[0] + first;
@@ -92,14 +138,54 @@ struct ValueType {
         return ValueType::Unknown;
     }
 
-    static const char * toString(int type) {
-        assert(type >= 0 && type <= kMaxType);
-        return gValueText[type];
-    };
-
-    static std::size_t length(int type) {
-        assert(type >= 0 && type <= kMaxType);
-        return gValueLength[type];
+    template <typename T>
+    static inline
+    void writeType(T * output, int valueType) {
+#if defined(WIN64) || defined(_WIN64) || defined(_M_X64) || defined(_M_AMD64) \
+ || defined(_M_IA64) || defined(__amd64__) || defined(__x86_64__) \
+ || defined(__aarch64__) || defined(_M_ARM64)
+        uint16_t * output16;
+        uint64_t * output64 = (uint64_t *)output;
+        if (valueType == ValueType::Movie) {
+            // (10 Bytes) 2D 2A E7 94 B5 E5 BD B1 2A 2D
+            *output64 = MAKE_UINT64(0x2D, 0x2A, 0xE7, 0x94, 0xB5, 0xE5, 0xBD, 0xB1);
+            output16 = (uint16_t *)(output + 8);
+            *output16 = MAKE_UINT16(0x2A, 0x2D);
+        } else if (valueType == ValueType::Music) {
+            // (10 Bytes) 2D 2A E9 9F B3 E4 B9 90 2A 2D
+            *output64 = MAKE_UINT64(0x2D, 0x2A, 0xE9, 0x9F, 0xB3, 0xE4, 0xB9, 0x90);
+            output16 = (uint16_t *)(output + 8);
+            *output16 = MAKE_UINT16(0x2A, 0x2D);
+        } else { // ValueType::MovieAndMusic
+            // (17 Bytes) 2D 2A E9 9F B3 E4 B9 90 26 E7 94 B5 E5 BD B1 2A 2D
+            *(output64 + 0) = MAKE_UINT64(0x2D, 0x2A, 0xE9, 0x9F, 0xB3, 0xE4, 0xB9, 0x90);
+            *(output64 + 1) = MAKE_UINT64(0x26, 0xE7, 0x94, 0xB5, 0xE5, 0xBD, 0xB1, 0x2A);
+            *(output + 16) = 0x2D;
+        }
+#else // !__amd64__
+        uint16_t * output16;
+        uint32_t * output32 = (uint32_t *)output;
+        if (valueType == ValueType::Movie) {
+            // (10 Bytes) 2D 2A E7 94 B5 E5 BD B1 2A 2D
+            *(output32 + 0) = MAKE_UINT32(0x2D, 0x2A, 0xE7, 0x94);
+            *(output32 + 1) = MAKE_UINT32(0xB5, 0xE5, 0xBD, 0xB1);
+            output16 = (uint16_t *)(output + 8);
+            *output16 = MAKE_UINT16(0x2A, 0x2D);
+        } else if (valueType == ValueType::Music) {
+            // (10 Bytes) 2D 2A E9 9F B3 E4 B9 90 2A 2D
+            *(output32 + 0) = MAKE_UINT32(0x2D, 0x2A, 0xE9, 0x9F);
+            *(output32 + 1) = MAKE_UINT32(0xB3, 0xE4, 0xB9, 0x90);
+            output16 = (uint16_t *)(output + 8);
+            *output16 = MAKE_UINT16(0x2A, 0x2D);
+        } else { // ValueType::MovieAndMusic
+            // (17 Bytes) 2D 2A E9 9F B3 E4 B9 90 26 E7 94 B5 E5 BD B1 2A 2D
+            *(output32 + 0) = MAKE_UINT32(0x2D, 0x2A, 0xE9, 0x9F);
+            *(output32 + 1) = MAKE_UINT32(0xB3, 0xE4, 0xB9, 0x90);
+            *(output32 + 2) = MAKE_UINT32(0x26, 0xE7, 0x94, 0xB5);
+            *(output32 + 3) = MAKE_UINT32(0xE5, 0xBD, 0xB1, 0x2A);
+            *(output + 16) = 0x2D;
+        }
+#endif // __amd64__
     }
 };
 

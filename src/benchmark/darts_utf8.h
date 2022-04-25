@@ -68,7 +68,6 @@ public:
     static const size_type kMaxAscii = 65536;
 
     static const std::uint32_t kPatternIdMask = 0x7FFFFFFFu;
-    static const std::uint32_t kHasChildMask = 0x40000000u;
     static const std::uint32_t kIsFinalMask = 0x80000000u;
     static const std::uint32_t kIsFreeMask = 0x80000000u;
 
@@ -83,8 +82,7 @@ public:
         union {
             std::uint32_t       identifier;
             struct {
-                std::uint32_t   pattern_id : 30;
-                std::uint32_t   has_child  : 1;
+                std::uint32_t   pattern_id : 31;
                 std::uint32_t   is_final   : 1;
             };
         };
@@ -302,7 +300,6 @@ public:
             cur_state->identifier = cur_ac_state.identifier;
             //cur_state->pattern_id = cur_ac_state.pattern_id;
             //cur_state->is_final = cur_ac_state.is_final;
-            cur_state->has_child = (nums_child != 0) ? 1 : 0;
 
             if (nums_child > 0) {
                 if (head == 1) {
@@ -417,7 +414,6 @@ public:
                     child_state.identifier = child_ac_state.identifier;
                     //child_state.is_final = child_ac_state.is_final;
                     //child_state.pattern_id = child_ac_state.pattern_id;
-                    child_state.has_child = (child_ac_state.children.size() != 0) ? 1 : 0;
 
                     if (likely(cur != root)) {
                         ident_t node = cur_state->fail_link;
@@ -458,6 +454,8 @@ public:
                     ac_queue.push_back(child_ac);
                     queue.push_back(child);
                 }
+            } else {
+                assert(cur_state->base == 0);
             }
         }
     }
@@ -526,6 +524,7 @@ public:
         ident_t cur = root;
         bool matched = false;
 
+MatchNextLabel:
         while (text < text_last) {
             ident_t node;
             std::size_t skip;
@@ -576,23 +575,23 @@ public:
                 assert(!this->is_free_state(node));
                 if (unlikely(node_state.is_final != 0)) {
                     // Matched
-                    matchInfo.last_pos   = (std::uint32_t)(text + 0 - text_first);
+                    matchInfo.last_pos   = (std::uint32_t)(text - text_first);
                     matchInfo.pattern_id = node_state.pattern_id;
                     if (node != cur) {
                         // If current full prefix is matched, judge the continous suffixs has some chars is matched?
                         // If it's have any chars is matched, it would be the longest matched suffix.
                         MatchInfo matchInfo1;
-                        bool matched1 = this->match_tail(cur, text + 0, text_last, matchInfo1);
+                        bool matched1 = this->match_tail(cur, text, text_last, matchInfo1);
                         if (matched1) {
                             matchInfo.last_pos  += matchInfo1.last_pos;
                             matchInfo.pattern_id = matchInfo1.pattern_id;
                             return true;
                         }
                     }
-                    if (node_state.has_child != 0) {
+                    if (node_state.base != 0) {
                         // If a sub suffix exists, match the continous longest suffixs.
                         MatchInfo matchInfo2;
-                        bool matched2 = this->match_tail(node, text + 0, text_last, matchInfo2);
+                        bool matched2 = this->match_tail(node, text, text_last, matchInfo2);
                         if (matched2) {
                             matchInfo.last_pos  += matchInfo2.last_pos;
                             matchInfo.pattern_id = matchInfo2.pattern_id;
@@ -602,10 +601,6 @@ public:
                 }
                 node = node_state.fail_link;
             } while (node != root);
-
-MatchNextLabel:
-            //text += skip;
-            (void)0;
         }
 
         return matched;
@@ -617,6 +612,104 @@ MatchNextLabel:
 
     bool match_one(const schar_type * first, const schar_type * last, MatchInfo & matchInfo) {
         return this->match_one((const uchar_type *)first, (const uchar_type *)last, matchInfo);
+    }
+
+    bool match_one(const uchar_type * first, const uchar_type * last, std::vector<MatchInfo> & matchList) {
+        uchar_type * text_first = (uchar_type *)first;
+        uchar_type * text_last = (uchar_type *)last;
+        uchar_type * text = text_first;
+        assert(text_first <= text_last);
+
+        ident_t root = this->root();
+        ident_t cur = root;
+        bool matched = false;
+
+MatchNextLabel:
+        while (text < text_last) {
+            ident_t node;
+            std::size_t skip;
+            std::uint32_t label = utf8_decode((const char *)text, skip);
+            text += skip;
+            if (likely(cur == root)) {
+                assert(this->is_valid_id(cur));
+                State & cur_state = this->states_[cur];
+                ident_t base = cur_state.base;
+                ident_t child = base + label;
+                assert(this->is_valid_child(child));
+                State & child_state = this->states_[child];
+                if (likely(child_state.check == cur)) {
+                    cur = child;
+                } else {
+                    goto MatchNextLabel;
+                }
+            } else {
+                do {
+                    assert(this->is_valid_id(cur));
+                    assert((cur == root) || ((cur != root) && !this->is_free_state(cur)));
+                    State & cur_state = this->states_[cur];
+                    ident_t base = cur_state.base;
+                    ident_t child = base + label;
+                    assert(this->is_valid_child(child));
+                    State & child_state = this->states_[child];
+                    if (likely(child_state.check != cur)) {
+                        if (likely(cur != root)) {
+                            cur = cur_state.fail_link;
+                        } else {
+                            goto MatchNextLabel;
+                        }
+                    } else {
+                        cur = child;
+                        break;
+                    }
+                } while (1);
+            }
+
+            node = cur;
+            assert(node != root);
+
+            do {
+                State & node_state = this->states_[node];
+                assert(this->is_valid_id(node));
+                assert(!this->is_free_state(node));
+                if (unlikely(node_state.is_final != 0)) {
+                    // Matched
+                    matchInfo.last_pos   = (std::uint32_t)(text - text_first);
+                    matchInfo.pattern_id = node_state.pattern_id;
+                    if (node != cur) {
+                        // If current full prefix is matched, judge the continous suffixs has some chars is matched?
+                        // If it's have any chars is matched, it would be the longest matched suffix.
+                        MatchInfo matchInfo1;
+                        bool matched1 = this->match_tail(cur, text, text_last, matchInfo1);
+                        if (matched1) {
+                            matchInfo.last_pos  += matchInfo1.last_pos;
+                            matchInfo.pattern_id = matchInfo1.pattern_id;
+                            return true;
+                        }
+                    }
+                    if (node_state.base != 0) {
+                        // If a sub suffix exists, match the continous longest suffixs.
+                        MatchInfo matchInfo2;
+                        bool matched2 = this->match_tail(node, text, text_last, matchInfo2);
+                        if (matched2) {
+                            matchInfo.last_pos  += matchInfo2.last_pos;
+                            matchInfo.pattern_id = matchInfo2.pattern_id;
+                        }
+                    }
+                    return true;
+                }
+                node = node_state.fail_link;
+            } while (node != root);
+        }
+
+        return matched;
+    }
+
+    bool match_one(const char_type * first, const char_type * last, std::vector<MatchInfo> & matchList) {
+        return this->match_one((const uchar_type *)first, (const uchar_type *)last, matchList);
+    }
+
+    bool match_one(const schar_type * first, const schar_type * last, std::vector<MatchInfo> & matchList) {
+        return this->match_one((const uchar_type *)first, (const uchar_type *)last, matchList);
     }
 
 private:

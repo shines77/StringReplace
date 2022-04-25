@@ -1,37 +1,19 @@
 
-#ifndef UTF8_ENCODING_H
-#define UTF8_ENCODING_H
+#ifndef UTF8_UTILS_H
+#define UTF8_UTILS_H
 
 #if defined(_MSC_VER) && (_MSC_VER >= 1020)
 #pragma once
 #endif
 
-#include <stdio.h>
-#include <stdlib.h>
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
-#include <inttypes.h>
-#include <time.h>
-#include <string.h>
 #include <assert.h>
 
-#include <cstdio>
-#include <cstdlib>
 #include <cstdint>
 #include <cstddef>
 #include <cstdbool>
-#include <iostream>
-#include <fstream>
-#include <string>
-#include <cstring>
-#include <list>
-#include <vector>
-#include <set>
-#include <map>
-#include <utility>
-#include <algorithm>
-#include <type_traits>
 
 namespace utf8 {
 
@@ -154,4 +136,4 @@ std::size_t utf8_encode(std::uint32_t unicode, char * text)
 
 } // namespace utf8
 
-#endif // UTF8_ENCODING_H
+#endif // UTF8_UTILS_H

@@ -140,7 +140,7 @@ std::size_t replaceInputChunkText(AcTrieT & acTrie,
                 }
                 break;
             } else {
-                std::size_t match_last = matchInfo.last_pos;
+                std::size_t match_end = matchInfo.last_pos;
                 std::size_t pattern_id = matchInfo.pattern_id;
                 assert(pattern_id < dict_list.size());
 
@@ -149,14 +149,19 @@ std::size_t replaceInputChunkText(AcTrieT & acTrie,
                 std::string ansi_key;
                 utf8_to_ansi(key, ansi_key);
 
-                assert(match_last >= key.size());
-                std::size_t match_first = match_last - key.size();
+                assert(match_end >= key.size());
+                std::size_t match_begin = match_end - key.size();
 
-                uint8_t * line_mid = line_first + match_first;
+                uint8_t * line_mid = line_first + match_begin;
                 while (line_first < line_mid) {
                     *output++ = *line_first++;
                 }
-
+#if 1
+                int valueType = dict_info.second;
+                std::size_t valueLength = ValueType::length(valueType);
+                ValueType::writeType(output, valueType);
+                output += valueLength;
+#else
                 int valueType = dict_info.second;
                 uint8_t * value = (uint8_t *)ValueType::toString(valueType);
                 std::size_t valueLength = ValueType::length(valueType);
@@ -165,7 +170,7 @@ std::size_t replaceInputChunkText(AcTrieT & acTrie,
                 while (value < value_end) {
                     *output++ = *value++;
                 }
-
+#endif
                 line_first += key.size();
             }
         }
