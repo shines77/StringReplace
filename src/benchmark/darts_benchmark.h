@@ -181,7 +181,7 @@ std::size_t replaceInputChunkText(AcTrieT & acTrie,
                 while (line_first < line_mid) {
                     *output++ = *line_first++;
                 }
-#if 0
+#if defined(_MSC_VER)
                 int valueType = dict_info.second;
                 std::size_t valueLength = ValueType::length(valueType);
                 ValueType::writeType(output, valueType);

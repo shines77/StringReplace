@@ -79,19 +79,36 @@ public:
     #pragma pack(push, 1)
 
     struct State {
-        ident_t                 base;
-        ident_t                 check;
-        ident_t                 fail_link;
         union {
-            std::uint32_t       identifier;
+            std::uint64_t       is_free;
+
             struct {
-                std::uint32_t   pattern_id : 31;
-                std::uint32_t   is_final   : 1;
+              ident_t           base;
+              ident_t           check;
+            };
+        };
+        union {
+            std::uint64_t       extend;
+
+            struct {
+              ident_t           fail_link;
+              union {
+                std::uint32_t   identifier;
+                struct {
+                  std::uint32_t pattern_id : 31;
+                  std::uint32_t is_final   : 1;
+                };
+              };
             };
         };
 
+#if 1
+        State() noexcept : is_free(0), extend(0) {
+        }
+#else
         State() noexcept : base(0), check(0), fail_link(kInvalidIdent), identifier(0) {
         }
+#endif
     };
 
     struct MatchInfo {
@@ -199,7 +216,7 @@ public:
 
     inline bool is_free_state(ident_t index) const {
         const State & state = this->states_[index];
-        return ((state.base == 0) && (state.check == 0));
+        return (state.is_free == 0);
     }
 
     ident_t first_free_id() const {
@@ -271,8 +288,7 @@ public:
 
     inline ident_t find_next_free_state(ident_t first) {
         for (ident_t cur = first; cur < this->max_state_id(); cur++) {
-            const State & cur_state = this->states_[cur];
-            if (cur_state.base == 0 && cur_state.check == 0) {
+            if (this->is_free_state(cur)) {
                 return cur;
             }
         }
@@ -534,7 +550,6 @@ public:
         ident_t cur = root;
         bool matched = false;
 
-MatchNextLabel:
         while (text < text_last) {
             ident_t node;
             std::size_t skip;
@@ -611,6 +626,9 @@ MatchNextLabel:
                 }
                 node = node_state.fail_link;
             } while (node != root);
+
+MatchNextLabel:
+            (void *)0;
         }
 
         return matched;
@@ -638,7 +656,6 @@ MatchNextLabel:
         matchList.clear();
         assert(cbGetPatternLen);
 
-MatchNextLabel:
         while (text < text_last) {
             ident_t node;
             std::size_t skip;
@@ -724,6 +741,9 @@ MatchNextLabel:
                 }
                 node = node_state.fail_link;
             } while (node != root);
+
+MatchNextLabel:
+            (void *)0;
         }
     }
 
