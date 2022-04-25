@@ -71,11 +71,11 @@
 #endif
 
 static const char * gValueText[4] = {
-#if !defined(_MSC_VER)
+#if defined(_MSC_VER)
     u8"-*电影*-",
     u8"-*音乐*-",
     u8"-*音乐&电影*-",
-#elif !defined(__clang__)
+#elif defined(__clang__)
     "\x2D\x2A\xE7\x94\xB5\xE5\xBD\xB1\x2A\x2D",
     "\x2D\x2A\xE9\x9F\xB3\xE4\xB9\x90\x2A\x2D",
     "\x2D\x2A\xE9\x9F\xB3\xE4\xB9\x90\x26\xE7\x94\xB5\xE5\xBD\xB1\x2A\x2D",
