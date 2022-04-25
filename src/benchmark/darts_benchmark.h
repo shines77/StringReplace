@@ -260,12 +260,12 @@ int StringReplace(const std::string & name,
     };
 
     ac_trie.build();
-    ac_trie.clear_ac_trie();
 
     sw.stop();
 
     double elapsedTime = sw.getMillisec();
 
+    ac_trie.clear_ac_trie();
     printf("darts_trie.max_state_id() = %u\n", (uint32_t)ac_trie.max_state_id());
     printf("darts_trie build elapsed time: %0.2f ms\n\n", elapsedTime);
 

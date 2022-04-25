@@ -701,6 +701,8 @@ MatchNextLabel:
                             size_type length = onHit_callback(matchInfo1.pattern_id);
                             matchInfo.begin = matchInfo.end - (std::uint32_t)length;
                             matchList.push_back(matchInfo);
+                            cur = root;
+                            text += matchInfo1.end;
                             break;
                         }
                     }
@@ -711,11 +713,13 @@ MatchNextLabel:
                         if (matched2) {
                             matchInfo.end       += matchInfo2.end;
                             matchInfo.pattern_id = matchInfo2.pattern_id;
+                            text += matchInfo2.end;
                         }
                     }
                     size_type length = onHit_callback(matchInfo.pattern_id);
                     matchInfo.begin = matchInfo.end - (std::uint32_t)length;
                     matchList.push_back(matchInfo);
+                    cur = root;
                     break;
                 }
                 node = node_state.fail_link;
