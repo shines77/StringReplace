@@ -32,12 +32,11 @@ if [ $EUID != 0 ]; then
 fi
 
 # default capacity=1024(MiB)
-capacity="1024"
+capacity="1024m"
 if [ -n "${1}" ]; then
-    capacity="${1}"
+    # capacity unit: (MiB)
+    capacity="${1}m"
 fi
-# capacity unit: (MiB)
-capacity="${capacity}m"
 
 # default mount_path="/ramdisk"
 mount_path="/ramdisk"
