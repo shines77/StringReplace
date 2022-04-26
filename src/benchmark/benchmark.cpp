@@ -130,7 +130,7 @@ void benchmark(const std::string & dict_file,
     test::StopWatch sw;
     double elapsedTime;
 
-#if 1
+#if 0
     sw.start();
     strstr_bench::StringReplace("strstr", dict_file, input_file, output_file);
     sw.stop();
@@ -143,7 +143,7 @@ void benchmark(const std::string & dict_file,
 
 #ifndef _DEBUG
 
-#if 1
+#if 0
     sw.start();
     ac_bench::StringReplace<v1::AcTrie<char>>("ac1", dict_file, input_file, output_file);
     sw.stop();
@@ -152,7 +152,7 @@ void benchmark(const std::string & dict_file,
     printf("elapsed time: %0.2f ms\n\n", elapsedTime);
 #endif
 
-#if 1
+#if 0
     sw.start();
     ac_bench::StringReplace<v2::AcTrie<char>>("ac2", dict_file, input_file, output_file);
     sw.stop();
