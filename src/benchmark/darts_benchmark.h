@@ -33,8 +33,8 @@
 
 #include "benchmark.h"
 #include "win_iconv.h"
-#include "darts.h"
-#include "darts_utf8.h"
+#include "Darts.h"
+#include "Darts_utf8.h"
 
 //
 // See: https://www.cnblogs.com/zhangchaoyang/articles/4508266.html
@@ -138,11 +138,7 @@ std::size_t replaceInputChunkText(AcTrieT & acTrie,
     uint8_t * line_first = (uint8_t *)input_chunk.c_str();
     uint8_t * line_last;
 
-    typedef typename AcTrieT::MatchInfoEx MatchInfoEx;
-    std::vector<MatchInfoEx> matchList;
-    typename AcTrieT::on_hit_callback onHit_callback =
-        std::bind(&getPatternLength, std::placeholders::_1, dict_list);
-    //acTrie.match_one(line_first, line_last, matchList, onHit_callback);
+    typedef typename AcTrieT::MatchInfo MatchInfo;
 
     while (line_first < input_end) {
 #if 0
@@ -154,7 +150,7 @@ std::size_t replaceInputChunkText(AcTrieT & acTrie,
         if (line_last == nullptr)
             line_last = input_end;
 
-        typename AcTrieT::MatchInfo matchInfo;
+        MatchInfo matchInfo;
         while (line_first < line_last) {
             bool matched = acTrie.match_one(line_first, line_last, matchInfo);
             if (!matched) {

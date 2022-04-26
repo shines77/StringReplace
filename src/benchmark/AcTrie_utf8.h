@@ -1,6 +1,6 @@
 
-#ifndef AHO_CORASICK_AUTO_V2_H
-#define AHO_CORASICK_AUTO_V2_H
+#ifndef AC_TRIE_UTF8_H
+#define AC_TRIE_UTF8_H
 
 #if defined(_MSC_VER) && (_MSC_VER >= 1020)
 #pragma once
@@ -35,8 +35,9 @@
 
 #include "benchmark.h"
 #include "win_iconv.h"
+#include "utf8_utils.h"
 
-namespace v2 {
+namespace utf8 {
 
 //
 // See: https://zhuanlan.zhihu.com/p/368184958 (KMP, Trie, DFA, AC-Auto, very clear)
@@ -60,7 +61,9 @@ public:
     static const ident_t kInvalidIdent = 0;
     static const ident_t kRootIdent = 1;
 
-    static const size_type kMaxAscii = 256;
+    static const std::uint32_t kMaxAscii = 256;
+    static const std::uint32_t kOverFlowLable = 65536;
+
     static const std::uint32_t kPatternIdMask = 0x7FFFFFFFu;
     static const std::uint32_t kIsFinalMask = 0x80000000u;
 
@@ -91,9 +94,10 @@ public:
 
 private:
     std::vector<state_type> states_;
+    bool has_overflow_labels_;
 
 public:
-    AcTrie() {
+    AcTrie() : has_overflow_labels_(false) {
         this->create_root();
     }
 
@@ -134,20 +138,36 @@ public:
         return kRootIdent;
     }
 
+    bool has_overflow_labels() const {
+        return this->has_overflow_labels_;
+    }
+
     void clear() {
+        this->clear_trie();
+    }
+
+    void clear_trie(size_type capacity = 2) {
+        this->has_overflow_labels_ = false;
+        capacity = (capacity < 2) ? 2: capacity;
         this->states_.clear();
-        this->states_.reserve(2);
+        this->states_.reserve(capacity);
         this->create_root();
     }
 
-    bool insert(const uchar_type * in_pattern, size_type length, std::uint32_t id) {
-        const uchar_type * pattern = (const uchar_type *)in_pattern;
+    bool insert(const uchar_type * pattern, size_type length, std::uint32_t id) {
+        uchar_type * text_first = (uchar_type *)pattern;
+        uchar_type * text_last = (uchar_type *)pattern + length;
+        uchar_type * text = text_first;
 
         ident_t cur = this->root();
         assert(this->is_valid_id(cur));
 
-        for (size_type i = 0; i < length; i++) {
-            std::uint32_t label = (uchar_type)*pattern++;
+        while (text < text_last) {
+            size_type skip;
+            std::uint32_t label = utf8_decode((const char *)text, skip);
+            if (label >= kOverFlowLable)
+                this->has_overflow_labels_ = true;
+            text += skip;
             State & cur_state = this->states_[cur];
             auto iter = cur_state.children.find(label);
             if (likely(iter == cur_state.children.end())) {
@@ -265,13 +285,14 @@ public:
 
         ident_t cur = root;
         while (text < text_last) {
-            std::uint32_t label = (uchar_type)*text;
+            std::size_t skip;
+            std::uint32_t label = utf8_decode((const char *)text, skip);
             assert(this->is_valid_id(cur));
             State & cur_state = this->states_[cur];
             auto iter = cur_state.children.find(label);
             if (likely(iter != cur_state.children.end())) {
                 cur = iter->second;
-                text++;
+                text += skip;
             } else {
                 if ((cur != root) && (cur_state.is_final != 0)) {
                     matchInfo.last_pos   = (std::uint32_t)(text - text_first);
@@ -314,7 +335,9 @@ public:
 
         while (text < text_last) {
             ident_t node;
-            std::uint32_t label = (uchar_type)*text;
+            std::size_t skip;
+            std::uint32_t label = utf8_decode((const char *)text, skip);
+            text += skip;
             if (likely(cur == root)) {
                 assert(this->is_valid_id(cur));
                 State & cur_state = this->states_[cur];
@@ -349,13 +372,13 @@ public:
                 State & node_state = this->states_[node];
                 if (unlikely(node_state.is_final != 0)) {
                     // Matched
-                    matchInfo.last_pos   = (std::uint32_t)(text + 1 - text_first);
+                    matchInfo.last_pos   = (std::uint32_t)(text + 0 - text_first);
                     matchInfo.pattern_id = node_state.pattern_id;
                     if (node != cur) {
                         // If current full prefix is matched, judge the continous suffixs has some chars is matched?
                         // If it's have any chars is matched, it would be the longest matched suffix.
                         MatchInfo matchInfo1;
-                        bool matched1 = this->match_tail(cur, text + 1, text_last, matchInfo1);
+                        bool matched1 = this->match_tail(cur, text + 0, text_last, matchInfo1);
                         if (matched1) {
                             matchInfo.last_pos  += matchInfo1.last_pos;
                             matchInfo.pattern_id = matchInfo1.pattern_id;
@@ -365,7 +388,7 @@ public:
                     if (node_state.children.size() != 0) {
                         // If a sub suffix exists, match the continous longest suffixs.
                         MatchInfo matchInfo2;
-                        bool matched2 = this->match_tail(node, text + 1, text_last, matchInfo2);
+                        bool matched2 = this->match_tail(node, text + 0, text_last, matchInfo2);
                         if (matched2) {
                             matchInfo.last_pos  += matchInfo2.last_pos;
                             matchInfo.pattern_id = matchInfo2.pattern_id;
@@ -377,7 +400,8 @@ public:
             } while (node != root);
 
 MatchNextLabel:
-            text++;
+            //text += skip;
+            (void)0;
         }
 
         return matched;
@@ -409,6 +433,6 @@ private:
     }
 };
 
-} // namespace v2
+} // namespace utf8
 
-#endif // AHO_CORASICK_AUTO_V2_H
+#endif // AC_TRIE_UTF8_H

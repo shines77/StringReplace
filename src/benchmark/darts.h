@@ -36,8 +36,8 @@
 
 #include "benchmark.h"
 #include "win_iconv.h"
-#include "AhoCorasick_v1.h"
-#include "AhoCorasick_v2.h"
+#include "AcTrie_v1.h"
+#include "AcTrie_v2.h"
 
 namespace darts_bench {
 
