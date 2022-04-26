@@ -165,17 +165,17 @@ std::size_t replaceInputChunkText(AcTrieT & acTrie,
                 }
                 break;
             } else {
-                std::size_t match_end = matchInfo.end;
-                std::size_t pattern_id = matchInfo.pattern_id;
-                assert(pattern_id < dict_list.size());
+                std::uint32_t match_end = matchInfo.end;
+                std::uint32_t pattern_id = matchInfo.pattern_id;
+                assert(pattern_id < (std::uint32_t)dict_list.size());
 
                 const std::pair<std::string, int> & dict_info = dict_list[pattern_id];
                 const std::string & key = dict_info.first;
                 std::string ansi_key;
                 utf8_to_ansi(key, ansi_key);
 
-                assert(match_end >= key.size());
-                std::size_t match_begin = match_end - key.size();
+                assert(match_end >= (std::uint32_t)key.size());
+                std::uint32_t match_begin = match_end - (std::uint32_t)key.size();
 
                 uint8_t * line_mid = line_first + match_begin;
                 while (line_first < line_mid) {
@@ -258,17 +258,17 @@ std::size_t replaceInputChunkTextEx(AcTrieT & acTrie,
             uint8_t * line_start = line_first;
             for (auto iter = match_list.begin(); iter != match_list.end(); ++iter) {
                 const MatchInfoEx & matchInfo = *iter;
-                std::size_t match_begin = matchInfo.begin;
-                std::size_t match_end   = matchInfo.end;
-                std::size_t pattern_id  = matchInfo.pattern_id;
-                assert(pattern_id < dict_list.size());
+                std::uint32_t match_begin = matchInfo.begin;
+                std::uint32_t match_end   = matchInfo.end;
+                std::uint32_t pattern_id  = matchInfo.pattern_id;
+                assert(pattern_id < (std::uint32_t)dict_list.size());
 
                 const std::pair<std::string, int> & dict_info = dict_list[pattern_id];
                 const std::string & key = dict_info.first;
                 std::string ansi_key;
                 utf8_to_ansi(key, ansi_key);
 
-                assert(std::size_t(match_end - match_begin) == key.size());
+                assert(std::uint32_t(match_end - match_begin) == (std::uint32_t)key.size());
 
                 uint8_t * line_mid = line_start + match_begin;
                 assert(line_first <= line_mid);

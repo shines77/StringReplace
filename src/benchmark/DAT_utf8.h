@@ -606,6 +606,13 @@ public:
             if (unlikely(child_state.check == cur)) {
                 cur = child;
                 text += skip;
+                if (child_state.is_final != 0) {
+                    matchInfo.end        = (std::uint32_t)(text - text_first);
+                    matchInfo.pattern_id = child_state.pattern_id;
+                    matched = true;
+                }
+                if (child_state.has_child == 0)
+                    break;
             } else {
                 if ((cur != root) && (cur_state.is_final != 0)) {
                     matchInfo.end        = (std::uint32_t)(text - text_first);
@@ -629,6 +636,54 @@ public:
     bool match_tail(ident_t root, const schar_type * first,
                     const schar_type * last, MatchInfo & matchInfo) {
         return this->match_tail(root, (const uchar_type *)first, (const uchar_type *)last, matchInfo);
+    }
+
+    inline
+    bool match_tail_fast(ident_t root, const uchar_type * first,
+                         const uchar_type * last, MatchInfo & matchInfo) {
+        uchar_type * text_first = (uchar_type *)first;
+        uchar_type * text_last = (uchar_type *)last;
+        uchar_type * text = text_first;
+        assert(text_first <= text_last);
+
+        bool matched = false;
+
+        ident_t cur = root;
+        while (text < text_last) {
+            std::size_t skip;
+            std::uint32_t label = utf8_decode((const char *)text, skip);
+            assert(this->is_valid_child(cur));
+            State & cur_state = this->states_[cur];
+            ident_t base = cur_state.base;
+            ident_t child = base + label;
+            assert(this->is_valid_child(child));
+            State & child_state = this->states_[child];
+            if (unlikely(child_state.check == cur)) {
+                cur = child;
+                text += skip;
+            } else {
+                if ((cur != root) && (cur_state.is_final != 0)) {
+                    matchInfo.end        = (std::uint32_t)(text - text_first);
+                    matchInfo.pattern_id = cur_state.pattern_id;
+                    return true;
+                }
+                break;
+            }
+        }
+
+        return matched;
+    }
+
+    inline
+    bool match_tail_fast(ident_t root, const char_type * first,
+                         const char_type * last, MatchInfo & matchInfo) {
+        return this->match_tail_fast(root, (const uchar_type *)first, (const uchar_type *)last, matchInfo);
+    }
+
+    inline
+    bool match_tail_fast(ident_t root, const schar_type * first,
+                         const schar_type * last, MatchInfo & matchInfo) {
+        return this->match_tail_fast(root, (const uchar_type *)first, (const uchar_type *)last, matchInfo);
     }
 
     //
@@ -676,7 +731,7 @@ RestartMatching:
                     if (unlikely(child_state.has_child != 0)) {
                         // If a sub suffix exists, match the continous longest suffixs.
                         MatchInfo matchInfo1;
-                        bool matched1 = this->match_tail(cur, text, text_last, matchInfo1);
+                        bool matched1 = this->match_tail_fast(cur, text, text_last, matchInfo1);
                         if (matched1) {
                             matchInfo.end       += matchInfo1.end;
                             matchInfo.pattern_id = matchInfo1.pattern_id;
@@ -702,7 +757,7 @@ RestartMatching:
                    std::vector<MatchInfoEx> & match_list,
                    const on_hit_callback & onHit_callback) {
         if (unlikely(!onHit_callback)) {
-            printf("utf8::AcTrie<T>::match_one(): onHit_callback is required.\n\n");
+            printf("utf8::DAT<T>::match_one(): onHit_callback is required.\n\n");
             return;
         }
 
@@ -712,17 +767,19 @@ RestartMatching:
         uchar_type * text_first = (uchar_type *)first;
         uchar_type * text_last = (uchar_type *)last;
         uchar_type * text = text_first;
+        uchar_type * text_save = nullptr;
         assert(text_first <= text_last);
 
         ident_t root = this->root();
         ident_t cur = root;
 
+MatchNextWord:
         while (text < text_last) {
             std::size_t skip;
             std::uint32_t label = utf8_decode((const char *)text, skip);
             text += skip;
 
-RestartMatching:
+//RestartMatching:
             assert(this->is_valid_id(cur));
             assert((cur == root) || ((cur != root) && !this->is_free_state(cur)));
             State & cur_state = this->states_[cur];
@@ -731,15 +788,29 @@ RestartMatching:
             assert(this->is_valid_child(child));
             State & child_state = this->states_[child];
             if (likely(child_state.check != cur)) {
-                // Mismatch, restart matching status
+                // Mismatch, restart matching status and recheck first word (label).
                 if (unlikely(cur != root)) {
                     cur = root;
-                    goto RestartMatching;
+                    assert(text_save != nullptr);
+                    text = text_save;
+                    text_save = nullptr;
+                    goto MatchNextWord;
+                } else {
+                    assert(text_save == nullptr);
                 }
             } else {
-                // Match next word (Label)
+                // Matched first word (Label)
                 cur = child;
-                if (unlikely(child_state.is_final != 0)) {
+                if (text_save == nullptr)
+                    text_save = text;                
+
+                if (likely(child_state.is_final == 0)) {
+                    if (likely(child_state.has_child == 0)) {
+                        // Matched one, restart matching status, match next ...
+                        cur = root;
+                        text_save = nullptr;
+                    }
+                } else {
                     // Matched
                     MatchInfoEx matchInfo;
                     matchInfo.end        = (std::uint32_t)(text - text_first);
@@ -755,11 +826,13 @@ RestartMatching:
                         }
                     }
                     std::uint32_t length = onHit_callback(matchInfo.pattern_id);
+                    assert(length > 0);
                     matchInfo.begin = matchInfo.end - length;
                     match_list.push_back(matchInfo);
 
                     // Matched one, restart matching status, match next ...
                     cur = root;
+                    text_save = nullptr;
                 }
             }
         }
@@ -785,17 +858,19 @@ RestartMatching:
         uchar_type * text_first = (uchar_type *)first;
         uchar_type * text_last = (uchar_type *)last;
         uchar_type * text = text_first;
+        uchar_type * text_save = nullptr;
         assert(text_first <= text_last);
 
         ident_t root = this->root();
         ident_t cur = root;
 
+MatchNextWord:
         while (text < text_last) {
             std::size_t skip;
             std::uint32_t label = utf8_decode((const char *)text, skip);
             text += skip;
 
-RestartMatching:
+//RestartMatching:
             assert(this->is_valid_id(cur));
             assert((cur == root) || ((cur != root) && !this->is_free_state(cur)));
             State & cur_state = this->states_[cur];
@@ -807,12 +882,27 @@ RestartMatching:
                 // Mismatch, restart matching status and recheck first word (label).
                 if (unlikely(cur != root)) {
                     cur = root;
-                    goto RestartMatching;
+                    assert(text_save != nullptr);
+                    text = text_save;
+                    text_save = nullptr;
+                    goto MatchNextWord;
+                } else {
+                    assert(text_save == nullptr);
                 }
             } else {
-                // Match next word (Label)
+                // Matched first word (Label)
                 cur = child;
-                if (unlikely(child_state.is_final != 0)) {
+                if (text_save == nullptr)
+                    text_save = text;                
+
+                if (likely(child_state.is_final == 0)) {
+                    if (likely(child_state.has_child == 0)) {
+                        // Matched one, restart matching status, match next ...
+                        cur = root;
+                        text = text_save;
+                        text_save = nullptr;
+                    }
+                } else {
                     // Matched
                     MatchInfoEx matchInfo;
                     matchInfo.end        = (std::uint32_t)(text - text_first);
@@ -834,6 +924,7 @@ RestartMatching:
 
                     // Matched one, restart matching status, match next ...
                     cur = root;
+                    text_save = nullptr;
                 }
             }
         }
