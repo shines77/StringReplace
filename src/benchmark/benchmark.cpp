@@ -167,7 +167,16 @@ void benchmark(const std::string & dict_file,
 
 #if 0
     sw.start();
-    darts_bench::StringReplace<darts_bench::Darts<char>>("darts", dict_file, input_file, output_file);
+    darts_bench::StringReplace<darts::Darts<char>>("darts", dict_file, input_file, output_file);
+    sw.stop();
+
+    elapsedTime = sw.getMillisec();
+    printf("elapsed time: %0.2f ms\n\n", elapsedTime);
+#endif
+
+#if 1
+    sw.start();
+    darts_bench::StringReplace<utf8::Darts<char>>("utf8_darts", dict_file, input_file, output_file);
     sw.stop();
 
     elapsedTime = sw.getMillisec();
@@ -178,7 +187,7 @@ void benchmark(const std::string & dict_file,
 
 #if 1
     sw.start();
-    darts_bench::StringReplace<utf8::Darts<char>>("utf8_darts", dict_file, input_file, output_file);
+    darts_bench::StringReplace<utf8::DAT<char>>("utf8_dat", dict_file, input_file, output_file);
     sw.stop();
 
     elapsedTime = sw.getMillisec();

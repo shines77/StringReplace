@@ -49,7 +49,6 @@ template <typename CharT>
 class AcTrie {
 public:
     typedef AcTrie<CharT>                                   this_type;
-    typedef CharT                                           o_char_type;
     typedef typename ::detail::char_trait<CharT>::NoSigned  char_type;
     typedef typename ::detail::char_trait<CharT>::Signed    schar_type;
     typedef typename ::detail::char_trait<CharT>::Unsigned  uchar_type;

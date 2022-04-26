@@ -35,6 +35,7 @@
 #include "win_iconv.h"
 #include "Darts.h"
 #include "Darts_utf8.h"
+#include "DAT_utf8.h"
 
 //
 // See: https://www.cnblogs.com/zhangchaoyang/articles/4508266.html
@@ -85,7 +86,7 @@ void preprocessing_dict_file(const std::string & dict_kv,
             int value_type = ValueType::parseValueType(dict_kv, sep_pos + 1, next_pos);
 
             dict_list.push_back(std::make_pair(key, value_type));
-            length_list.push_back(value_type);
+            length_list.push_back((std::uint32_t)key.size());
 
             kv_index++;
         }
@@ -336,6 +337,7 @@ int StringReplace(const std::string & name,
 
     std::vector<std::pair<std::string, int>> dict_list;
     std::vector<int> length_list;
+
     preprocessing_dict_file(dict_kv, dict_list, length_list);
 
     static const std::size_t kPageSize = 4 * 1024;

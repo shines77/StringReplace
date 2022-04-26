@@ -169,6 +169,7 @@
     <ClInclude Include="..\..\..\src\benchmark\Darts.h" />
     <ClInclude Include="..\..\..\src\benchmark\darts_benchmark.h" />
     <ClInclude Include="..\..\..\src\benchmark\Darts_utf8.h" />
+    <ClInclude Include="..\..\..\src\benchmark\DAT_utf8.h" />
     <ClInclude Include="..\..\..\src\benchmark\strstr_benchmark.h" />
     <ClInclude Include="..\..\..\src\benchmark\utf8_utils.h" />
     <ClInclude Include="..\..\..\src\benchmark\win_iconv.h" />

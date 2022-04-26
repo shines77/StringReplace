@@ -1,6 +1,6 @@
 
-#ifndef AC_DOUBLE_ARRAY_TRIE_UTF8_H
-#define AC_DOUBLE_ARRAY_TRIE_UTF8_H
+#ifndef DOUBLE_ARRAY_TRIE_UTF8_H
+#define DOUBLE_ARRAY_TRIE_UTF8_H
 
 #if defined(_MSC_VER) && (_MSC_VER >= 1020)
 #pragma once
@@ -50,9 +50,9 @@ namespace utf8 {
 // See: https://nark.cc/p/?p=1453
 //
 template <typename CharT>
-class Darts {
+class DAT {
 public:
-    typedef Darts<CharT>                                    this_type;
+    typedef DAT<CharT>                                      this_type;
     typedef typename ::detail::char_trait<CharT>::NoSigned  char_type;
     typedef typename ::detail::char_trait<CharT>::Signed    schar_type;
     typedef typename ::detail::char_trait<CharT>::Unsigned  uchar_type;
@@ -94,7 +94,6 @@ public:
             std::uint64_t       extend;
 
             struct {
-              ident_t           fail_link;
               union {
                 std::uint32_t   identifier;
                 struct {
@@ -103,13 +102,14 @@ public:
                   std::uint32_t is_final   : 1;
                 };
               };
+              ident_t           reserve;
             };
         };
 #if 1
         State() noexcept : is_free(0), extend(0) {
         }
 #else
-        State() noexcept : base(0), check(0), fail_link(kInvalidIdent), identifier(0) {
+        State() noexcept : base(0), check(0), identifier(0), reserve(0) {
         }
 #endif
     };
@@ -138,18 +138,18 @@ private:
     AcTireT acTrie_;
 
 public:
-    Darts() : first_free_id_(kFirstFreeIdent) {
+    DAT() : first_free_id_(kFirstFreeIdent) {
         this->create_root();
     }
 
-    Darts(size_type capacity) : first_free_id_(kFirstFreeIdent) {
+    DAT(size_type capacity) : first_free_id_(kFirstFreeIdent) {
         if (capacity != 0) {
             this->states_.reserve(capacity);
         }
         this->create_root();
     }
 
-    virtual ~Darts() {}
+    virtual ~DAT() {}
 
     ident_t max_state_id() const {
         return static_cast<ident_t>(this->states_.size());
@@ -339,6 +339,7 @@ public:
             //cur_state->pattern_id = cur_ac_state.pattern_id;
             //cur_state->is_final = cur_ac_state.is_final;
             cur_state->has_child = (nums_child != 0) ? 1 : 0;
+            cur_state->reserve = 0;
 
             if (nums_child > 0) {
                 if (head == 1) {
@@ -417,34 +418,6 @@ public:
                     AcState & child_ac_state = this->acTrie_.states(child_ac);
                     assert(this->acTrie_.is_valid_id(child_ac));
 
-                    if (likely(cur_ac != root_ac)) {
-                        ident_t node_ac = cur_ac_state.fail_link;
-                        do {
-                            if (likely(node_ac != kInvalidIdent)) {
-                                AcState & node_ac_state = this->acTrie_.states(node_ac);
-                                auto node_iter = node_ac_state.children.find(label);
-                                if (likely(node_iter == node_ac_state.children.end())) {
-                                    // node = node->fail;
-                                    node_ac = node_ac_state.fail_link;
-                                }
-                                else {
-                                    // child->fail = node->children[i];
-                                    child_ac_state.fail_link = node_iter->second;
-                                    assert(child_ac != node_iter->second);
-                                    break;
-                                }
-                            }
-                            else {
-                                // child->fail = root;
-                                child_ac_state.fail_link = root_ac;
-                                break;
-                            }
-                        } while (1);
-                    }
-                    else {
-                        child_ac_state.fail_link = root_ac;
-                    }
-
                     ident_t child = base + label;
                     assert(this->is_valid_child(child));
                     assert(this->is_free_state(child));
@@ -456,42 +429,7 @@ public:
                     //child_state.is_final = child_ac_state.is_final;
                     //child_state.pattern_id = child_ac_state.pattern_id;
                     child_state.has_child = (child_ac_state.children.size() != 0) ? 1 : 0;
-
-                    if (likely(cur != root)) {
-                        ident_t node = cur_state->fail_link;
-                        do {
-                            if (likely(node != kInvalidIdent)) {
-                                assert(this->is_valid_id(node));
-                                State & node_state = this->states_[node];
-                                ident_t node_child = node_state.base + label;
-                                if (likely(node_child != kInvalidIdent) && this->is_valid_child(node_child)) {
-                                    State & node_child_state = this->states_[node_child];
-                                    if (likely(node_child_state.check != node || this->is_free_child(node_child))) {
-                                        // node = node->fail;
-                                        node = node_state.fail_link;
-                                    }
-                                    else {
-                                        // child->fail = node->children[i];
-                                        assert(child != node_child);
-                                        child_state.fail_link = node_child;
-                                        break;
-                                    }
-                                } else {
-                                    // child->fail = root;
-                                    child_state.fail_link = root;
-                                    break;
-                                }
-                            }
-                            else {
-                                // child->fail = root;
-                                child_state.fail_link = root;
-                                break;
-                            }
-                        } while (1);
-                    }
-                    else {
-                        child_state.fail_link = root;
-                    }
+                    child_state.reserve = 0;
 
                     ac_queue.push_back(child_ac);
                     queue.push_back(child);
@@ -534,6 +472,7 @@ public:
             //cur_state->pattern_id = cur_ac_state.pattern_id;
             //cur_state->is_final = cur_ac_state.is_final;
             cur_state->has_child = (nums_child != 0) ? 1 : 0;
+            cur_state->reserve = 0;
 
             if (nums_child > 0) {
                 if (head == 1) {
@@ -613,34 +552,6 @@ public:
                     AcState & child_ac_state = this->acTrie_.states(child_ac);
                     assert(this->acTrie_.is_valid_id(child_ac));
 
-                    if (likely(cur_ac != root_ac)) {
-                        ident_t node_ac = cur_ac_state.fail_link;
-                        do {
-                            if (likely(node_ac != kInvalidIdent)) {
-                                AcState & node_ac_state = this->acTrie_.states(node_ac);
-                                auto node_iter = node_ac_state.children.find(label);
-                                if (likely(node_iter == node_ac_state.children.end())) {
-                                    // node = node->fail;
-                                    node_ac = node_ac_state.fail_link;
-                                }
-                                else {
-                                    // child->fail = node->children[i];
-                                    child_ac_state.fail_link = node_iter->second;
-                                    assert(child_ac != node_iter->second);
-                                    break;
-                                }
-                            }
-                            else {
-                                // child->fail = root;
-                                child_ac_state.fail_link = root_ac;
-                                break;
-                            }
-                        } while (1);
-                    }
-                    else {
-                        child_ac_state.fail_link = root_ac;
-                    }
-
                     ident_t child;
                     if (label < kOverFlowLable) {
                         child = base + label;
@@ -661,42 +572,7 @@ public:
                     //child_state.is_final = child_ac_state.is_final;
                     //child_state.pattern_id = child_ac_state.pattern_id;
                     child_state.has_child = (child_ac_state.children.size() != 0) ? 1 : 0;
-
-                    if (likely(cur != root)) {
-                        ident_t node = cur_state->fail_link;
-                        do {
-                            if (likely(node != kInvalidIdent)) {
-                                assert(this->is_valid_id(node));
-                                State & node_state = this->states_[node];
-                                ident_t node_child = node_state.base + label;
-                                if (likely(node_child != kInvalidIdent) && this->is_valid_child(node_child)) {
-                                    State & node_child_state = this->states_[node_child];
-                                    if (likely(node_child_state.check != node || this->is_free_child(node_child))) {
-                                        // node = node->fail;
-                                        node = node_state.fail_link;
-                                    }
-                                    else {
-                                        // child->fail = node->children[i];
-                                        assert(child != node_child);
-                                        child_state.fail_link = node_child;
-                                        break;
-                                    }
-                                } else {
-                                    // child->fail = root;
-                                    child_state.fail_link = root;
-                                    break;
-                                }
-                            }
-                            else {
-                                // child->fail = root;
-                                child_state.fail_link = root;
-                                break;
-                            }
-                        } while (1);
-                    }
-                    else {
-                        child_state.fail_link = root;
-                    }
+                    child_state.reserve = 0;
 
                     ac_queue.push_back(child_ac);
                     queue.push_back(child);
@@ -768,87 +644,47 @@ public:
 
         ident_t root = this->root();
         ident_t cur = root;
+
         bool matched = false;
 
         while (text < text_last) {
-            ident_t node;
             std::size_t skip;
             std::uint32_t label = utf8_decode((const char *)text, skip);
             text += skip;
-            if (likely(cur == root)) {
-                assert(this->is_valid_id(cur));
-                State & cur_state = this->states_[cur];
-                ident_t base = cur_state.base;
-                ident_t child = base + label;
-                assert(this->is_valid_child(child));
-                State & child_state = this->states_[child];
-                //if (likely((child_state.check == cur) && this->is_allocated_child(child))) {
-                if (likely(child_state.check == cur)) {
-                    cur = child;
-                } else {
-                    goto MatchNextLabel;
+
+RestartMatching:
+            assert(this->is_valid_id(cur));
+            assert((cur == root) || ((cur != root) && !this->is_free_state(cur)));
+            State & cur_state = this->states_[cur];
+            ident_t base = cur_state.base;
+            ident_t child = base + label;
+            assert(this->is_valid_child(child));
+            State & child_state = this->states_[child];
+            if (likely(child_state.check != cur)) {
+                // Mismatch, restart matching status
+                if (unlikely(cur != root)) {
+                    cur = root;
+                    goto RestartMatching;
                 }
             } else {
-                do {
-                    assert(this->is_valid_id(cur));
-                    assert((cur == root) || ((cur != root) && !this->is_free_state(cur)));
-                    State & cur_state = this->states_[cur];
-                    ident_t base = cur_state.base;
-                    ident_t child = base + label;
-                    assert(this->is_valid_child(child));
-                    State & child_state = this->states_[child];
-                    //if (likely((child_state.check != cur) || this->is_free_child(child))) {
-                    if (likely(child_state.check != cur)) {
-                        if (likely(cur != root)) {
-                            cur = cur_state.fail_link;
-                        } else {
-                            goto MatchNextLabel;
-                        }
-                    } else {
-                        cur = child;
-                        break;
-                    }
-                } while (1);
-            }
-
-            node = cur;
-            assert(node != root);
-
-            do {
-                State & node_state = this->states_[node];
-                assert(this->is_valid_id(node));
-                assert(!this->is_free_state(node));
-                if (unlikely(node_state.is_final != 0)) {
+                // Match next word (Label)
+                cur = child;
+                if (unlikely(child_state.is_final != 0)) {
                     // Matched
                     matchInfo.end        = (std::uint32_t)(text - text_first);
-                    matchInfo.pattern_id = node_state.pattern_id;
-                    if (node != cur) {
-                        // If current full prefix is matched, judge the continous suffixs has some chars is matched?
-                        // If it's have any chars is matched, it would be the longest matched suffix.
+                    matchInfo.pattern_id = child_state.pattern_id;
+                    if (unlikely(child_state.has_child != 0)) {
+                        // If a sub suffix exists, match the continous longest suffixs.
                         MatchInfo matchInfo1;
                         bool matched1 = this->match_tail(cur, text, text_last, matchInfo1);
                         if (matched1) {
                             matchInfo.end       += matchInfo1.end;
                             matchInfo.pattern_id = matchInfo1.pattern_id;
-                            return true;
-                        }
-                    }
-                    if (node_state.has_child != 0) {
-                        // If a sub suffix exists, match the continous longest suffixs.
-                        MatchInfo matchInfo2;
-                        bool matched2 = this->match_tail(node, text, text_last, matchInfo2);
-                        if (matched2) {
-                            matchInfo.end       += matchInfo2.end;
-                            matchInfo.pattern_id = matchInfo2.pattern_id;
                         }
                     }
                     return true;
                 }
-                node = node_state.fail_link;
-            } while (node != root);
-
-MatchNextLabel:
-            (void)0;
+            }
         }
 
         return matched;
@@ -882,93 +718,50 @@ MatchNextLabel:
         assert(onHit_callback);
 
         while (text < text_last) {
-            ident_t node;
             std::size_t skip;
             std::uint32_t label = utf8_decode((const char *)text, skip);
             text += skip;
-            if (likely(cur == root)) {
-                assert(this->is_valid_id(cur));
-                State & cur_state = this->states_[cur];
-                ident_t base = cur_state.base;
-                ident_t child = base + label;
-                assert(this->is_valid_child(child));
-                State & child_state = this->states_[child];
-                if (likely(child_state.check == cur)) {
-                    cur = child;
-                } else {
-                    goto MatchNextLabel;
+
+RestartMatching:
+            assert(this->is_valid_id(cur));
+            assert((cur == root) || ((cur != root) && !this->is_free_state(cur)));
+            State & cur_state = this->states_[cur];
+            ident_t base = cur_state.base;
+            ident_t child = base + label;
+            assert(this->is_valid_child(child));
+            State & child_state = this->states_[child];
+            if (likely(child_state.check != cur)) {
+                // Mismatch, restart matching status
+                if (unlikely(cur != root)) {
+                    cur = root;
+                    goto RestartMatching;
                 }
             } else {
-                do {
-                    assert(this->is_valid_id(cur));
-                    assert((cur == root) || ((cur != root) && !this->is_free_state(cur)));
-                    State & cur_state = this->states_[cur];
-                    ident_t base = cur_state.base;
-                    ident_t child = base + label;
-                    assert(this->is_valid_child(child));
-                    State & child_state = this->states_[child];
-                    if (likely(child_state.check != cur)) {
-                        if (likely(cur != root)) {
-                            cur = cur_state.fail_link;
-                        } else {
-                            goto MatchNextLabel;
-                        }
-                    } else {
-                        cur = child;
-                        break;
-                    }
-                } while (1);
-            }
-
-            node = cur;
-            assert(node != root);
-
-            do {
-                State & node_state = this->states_[node];
-                assert(this->is_valid_id(node));
-                assert(!this->is_free_state(node));
-                if (unlikely(node_state.is_final != 0)) {
+                // Match next word (Label)
+                cur = child;
+                if (unlikely(child_state.is_final != 0)) {
                     // Matched
                     MatchInfoEx matchInfo;
                     matchInfo.end        = (std::uint32_t)(text - text_first);
-                    matchInfo.pattern_id = node_state.pattern_id;
-                    if (node != cur) {
-                        // If current full prefix is matched, judge the continous suffixs has some chars is matched?
-                        // If it's have any chars is matched, it would be the longest matched suffix.
+                    matchInfo.pattern_id = child_state.pattern_id;
+                    if (unlikely(child_state.has_child != 0)) {
+                        // If a sub suffix exists, match the continous longest suffixs.
                         MatchInfo matchInfo1;
                         bool matched1 = this->match_tail(cur, text, text_last, matchInfo1);
                         if (matched1) {
                             matchInfo.end       += matchInfo1.end;
                             matchInfo.pattern_id = matchInfo1.pattern_id;
-                            size_type length = onHit_callback(matchInfo1.pattern_id);
-                            matchInfo.begin = matchInfo.end - (std::uint32_t)length;
-                            match_list.push_back(matchInfo);
-                            cur = root;
                             text += matchInfo1.end;
-                            break;
                         }
                     }
-                    if (node_state.has_child != 0) {
-                        // If a sub suffix exists, match the continous longest suffixs.
-                        MatchInfo matchInfo2;
-                        bool matched2 = this->match_tail(node, text, text_last, matchInfo2);
-                        if (matched2) {
-                            matchInfo.end       += matchInfo2.end;
-                            matchInfo.pattern_id = matchInfo2.pattern_id;
-                            text += matchInfo2.end;
-                        }
-                    }
-                    size_type length = onHit_callback(matchInfo.pattern_id);
-                    matchInfo.begin = matchInfo.end - (std::uint32_t)length;
+                    std::uint32_t length = onHit_callback(matchInfo.pattern_id);
+                    matchInfo.begin = matchInfo.end - length;
                     match_list.push_back(matchInfo);
-                    cur = root;
-                    break;
-                }
-                node = node_state.fail_link;
-            } while (node != root);
 
-MatchNextLabel:
-            (void)0;
+                    // Matched one, restart matching status, match next ...
+                    cur = root;
+                }
+            }
         }
     }
 
@@ -998,93 +791,51 @@ MatchNextLabel:
         ident_t cur = root;
 
         while (text < text_last) {
-            ident_t node;
             std::size_t skip;
             std::uint32_t label = utf8_decode((const char *)text, skip);
             text += skip;
-            if (unlikely(cur == root)) {
-                assert(this->is_valid_id(cur));
-                State & cur_state = this->states_[cur];
-                ident_t base = cur_state.base;
-                ident_t child = base + label;
-                assert(this->is_valid_child(child));
-                State & child_state = this->states_[child];
-                if (unlikely(child_state.check == cur)) {
-                    cur = child;
-                } else {
-                    goto MatchNextLabel;
+
+RestartMatching:
+            assert(this->is_valid_id(cur));
+            assert((cur == root) || ((cur != root) && !this->is_free_state(cur)));
+            State & cur_state = this->states_[cur];
+            ident_t base = cur_state.base;
+            ident_t child = base + label;
+            assert(this->is_valid_child(child));
+            State & child_state = this->states_[child];
+            if (likely(child_state.check != cur)) {
+                // Mismatch, restart matching status and recheck first word (label).
+                if (unlikely(cur != root)) {
+                    cur = root;
+                    goto RestartMatching;
                 }
             } else {
-                do {
-                    assert(this->is_valid_id(cur));
-                    assert((cur == root) || ((cur != root) && !this->is_free_state(cur)));
-                    State & cur_state = this->states_[cur];
-                    ident_t base = cur_state.base;
-                    ident_t child = base + label;
-                    assert(this->is_valid_child(child));
-                    State & child_state = this->states_[child];
-                    if (likely(child_state.check != cur)) {
-                        if (likely(cur != root)) {
-                            cur = cur_state.fail_link;
-                        } else {
-                            goto MatchNextLabel;
-                        }
-                    } else {
-                        cur = child;
-                        break;
-                    }
-                } while (1);
-            }
-
-            node = cur;
-            assert(node != root);
-
-            do {
-                State & node_state = this->states_[node];
-                assert(this->is_valid_id(node));
-                assert(!this->is_free_state(node));
-                if (unlikely(node_state.is_final != 0)) {
+                // Match next word (Label)
+                cur = child;
+                if (unlikely(child_state.is_final != 0)) {
                     // Matched
                     MatchInfoEx matchInfo;
                     matchInfo.end        = (std::uint32_t)(text - text_first);
-                    matchInfo.pattern_id = node_state.pattern_id;
-                    if (likely(node != cur)) {
-                        // If current full prefix is matched, judge the continous suffixs has some chars is matched?
-                        // If it's have any chars is matched, it would be the longest matched suffix.
+                    matchInfo.pattern_id = child_state.pattern_id;
+                    if (unlikely(child_state.has_child != 0)) {
+                        // If a sub suffix exists, match the continous longest suffixs.
                         MatchInfo matchInfo1;
                         bool matched1 = this->match_tail(cur, text, text_last, matchInfo1);
                         if (matched1) {
                             matchInfo.end       += matchInfo1.end;
                             matchInfo.pattern_id = matchInfo1.pattern_id;
-                            std::uint32_t length = length_list[matchInfo1.pattern_id];
-                            matchInfo.begin = matchInfo.end - length;
-                            match_list.push_back(matchInfo);
-                            cur = root;
                             text += matchInfo1.end;
-                            break;
-                        }
-                    }
-                    if (unlikely(node_state.has_child != 0)) {
-                        // If a sub suffix exists, match the continous longest suffixs.
-                        MatchInfo matchInfo2;
-                        bool matched2 = this->match_tail(node, text, text_last, matchInfo2);
-                        if (matched2) {
-                            matchInfo.end       += matchInfo2.end;
-                            matchInfo.pattern_id = matchInfo2.pattern_id;
-                            text += matchInfo2.end;
                         }
                     }
                     std::uint32_t length = length_list[matchInfo.pattern_id];
+                    assert(length > 0);
                     matchInfo.begin = matchInfo.end - length;
                     match_list.push_back(matchInfo);
-                    cur = root;
-                    break;
-                }
-                node = node_state.fail_link;
-            } while (node != root);
 
-MatchNextLabel:
-            (void)0;
+                    // Matched one, restart matching status, match next ...
+                    cur = root;
+                }
+            }
         }
     }
 
@@ -1108,20 +859,20 @@ private:
         State dummy;
         dummy.base = 0;
         dummy.check = 0;
-        dummy.fail_link = kInvalidIdent;
         dummy.identifier = 0;
+        dummy.reserve = 0;
         this->states_.push_back(std::move(dummy));
 
         // Append root state, Identifier = 1
         State root;
         root.base = 0;
         root.check = 0;
-        root.fail_link = kInvalidIdent;
         root.identifier = 0;
+        root.reserve = 0;
         this->states_.push_back(std::move(root));
     }
 };
 
 } // namespace utf8
 
-#endif // AC_DOUBLE_ARRAY_TRIE_UTF8_H
+#endif // DOUBLE_ARRAY_TRIE_UTF8_H

@@ -51,5 +51,8 @@
     <ClInclude Include="..\..\..\src\benchmark\Darts_utf8.h">
       <Filter>src\benchmark</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\src\benchmark\DAT_utf8.h">
+      <Filter>src\benchmark</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

@@ -1,6 +1,6 @@
 
-#ifndef DOUBLE_ARRAY_TRIE_H
-#define DOUBLE_ARRAY_TRIE_H
+#ifndef AC_DOUBLE_ARRAY_TRIE_H
+#define AC_DOUBLE_ARRAY_TRIE_H
 
 #if defined(_MSC_VER) && (_MSC_VER >= 1020)
 #pragma once
@@ -39,7 +39,7 @@
 #include "AcTrie_v1.h"
 #include "AcTrie_v2.h"
 
-namespace darts_bench {
+namespace darts {
 
 //
 // See: https://zhuanlan.zhihu.com/p/368184958 (KMP, Trie, DFA, AC-Auto, very clear)
@@ -52,7 +52,6 @@ template <typename CharT>
 class Darts {
 public:
     typedef Darts<CharT>                                    this_type;
-    typedef CharT                                           o_char_type;
     typedef typename ::detail::char_trait<CharT>::NoSigned  char_type;
     typedef typename ::detail::char_trait<CharT>::Signed    schar_type;
     typedef typename ::detail::char_trait<CharT>::Unsigned  uchar_type;
@@ -116,15 +115,14 @@ private:
     std::vector<state_type> states_;
 
     ident_t first_free_id_;
-    ident_t last_free_id_;
     AcTireT acTrie_;
 
 public:
-    Darts() : first_free_id_(kFirstFreeIdent), last_free_id_(kFirstFreeIdent) {
+    Darts() : first_free_id_(kFirstFreeIdent) {
         this->create_root();
     }
 
-    Darts(size_type capacity) : first_free_id_(kFirstFreeIdent), last_free_id_(kFirstFreeIdent) {
+    Darts(size_type capacity) : first_free_id_(kFirstFreeIdent) {
         if (capacity != 0) {
             this->states_.reserve(capacity);
         }
@@ -210,14 +208,6 @@ public:
 
     void set_first_free_id(ident_t next) {
         this->first_free_id_ = next;
-    }
-
-    ident_t last_free_id() const {
-        return this->last_free_id_;
-    }
-
-    void set_last_free_id(ident_t last) {
-        this->last_free_id_ = last;
     }
 
     ident_t root() const {
@@ -647,4 +637,4 @@ private:
 
 } // namespace darts_bench
 
-#endif // DOUBLE_ARRAY_TRIE_H
+#endif // AC_DOUBLE_ARRAY_TRIE_H
