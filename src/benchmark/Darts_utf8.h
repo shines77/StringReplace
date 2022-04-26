@@ -1002,7 +1002,7 @@ MatchNextLabel:
             std::size_t skip;
             std::uint32_t label = utf8_decode((const char *)text, skip);
             text += skip;
-            if (unlikely(cur == root)) {
+            if (likely(cur == root)) {
                 assert(this->is_valid_id(cur));
                 State & cur_state = this->states_[cur];
                 ident_t base = cur_state.base;
