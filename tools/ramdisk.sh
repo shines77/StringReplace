@@ -2,7 +2,8 @@
 # REQUIRES SUDO
 
 #
-# usage:  $ sudo ramdisk.sh [capacity=1024m] [mount_path=/ramdisk] [label=ramdisk]
+# usage:  $ sudo ramdisk.sh [capacity=1024] [mount_path=/ramdisk] [label=ramdisk]
+#                                   =(1024 MB)
 # mount a ramdisk device with given capacity and path
 #
 
@@ -31,10 +32,12 @@ if [ $EUID != 0 ]; then
 fi
 
 # default capacity=1024(MiB)
-capacity="1024m"
+capacity="1024"
 if [ -n "${1}" ]; then
     capacity="${1}"
 fi
+# capacity unit: (MiB)
+capacity="${capacity}m"
 
 # default mount_path="/ramdisk"
 mount_path="/ramdisk"
