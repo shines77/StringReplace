@@ -48,10 +48,14 @@ namespace darts_bench {
 static const bool kDisplayOutput = false;
 
 void preprocessing_dict_file(const std::string & dict_kv,
-                             std::vector<std::pair<std::string, int>> & dict_list)
+                             std::vector<std::pair<std::string, int>> & dict_list,
+                             std::vector<int> & length_list)
 {
     std::size_t total_size = dict_kv.size();
     printf("darts_bench::preprocessing_dict_file()\n\n");
+
+    dict_list.clear();
+    length_list.clear();
 
     std::uint32_t kv_index = 0;
     std::size_t last_pos = 0;
@@ -81,6 +85,7 @@ void preprocessing_dict_file(const std::string & dict_kv,
             int value_type = ValueType::parseValueType(dict_kv, sep_pos + 1, next_pos);
 
             dict_list.push_back(std::make_pair(key, value_type));
+            length_list.push_back(value_type);
 
             kv_index++;
         }
@@ -126,8 +131,8 @@ int getPatternType(std::uint32_t pattern_id,
 
 template <typename AcTrieT>
 std::size_t replaceInputChunkText(AcTrieT & acTrie,
-                                  std::vector<std::pair<std::string, int>> & dict_list,
-                                  std::string & input_chunk, std::size_t input_chunk_size,
+                                  const std::vector<std::pair<std::string, int>> & dict_list,
+                                  const std::string & input_chunk, std::size_t input_chunk_size,
                                   std::string & output_chunk, std::size_t output_offset)
 {
     uint8_t * input_end = (uint8_t *)input_chunk.c_str() + input_chunk_size;
@@ -211,8 +216,9 @@ std::size_t replaceInputChunkText(AcTrieT & acTrie,
 
 template <typename AcTrieT>
 std::size_t replaceInputChunkTextEx(AcTrieT & acTrie,
-                                    std::vector<std::pair<std::string, int>> & dict_list,
-                                    std::string & input_chunk, std::size_t input_chunk_size,
+                                    const std::vector<std::pair<std::string, int>> & dict_list,
+                                    const std::vector<int> & length_list,
+                                    const std::string & input_chunk, std::size_t input_chunk_size,
                                     std::string & output_chunk, std::size_t output_offset)
 {
     uint8_t * input_end = (uint8_t *)input_chunk.c_str() + input_chunk_size;
@@ -225,7 +231,7 @@ std::size_t replaceInputChunkTextEx(AcTrieT & acTrie,
 
     typedef typename AcTrieT::MatchInfoEx MatchInfoEx;
 
-    std::vector<MatchInfoEx> matchList;
+    std::vector<MatchInfoEx> match_list;
     static typename AcTrieT::on_hit_callback onHit_callback =
         std::bind(&getPatternLength, std::placeholders::_1, dict_list);
 
@@ -239,15 +245,15 @@ std::size_t replaceInputChunkTextEx(AcTrieT & acTrie,
         if (line_last == nullptr)
             line_last = input_end;
 
-        acTrie.match_one(line_first, line_last, matchList, onHit_callback);
+        acTrie.match_one(line_first, line_last, match_list, length_list);
 
-        if (likely(matchList.size() == 0)) {
+        if (likely(match_list.size() == 0)) {
             while (line_first < line_last) {
                 *output++ = *line_first++;
             }
         } else {
             uint8_t * line_start = line_first;
-            for (auto iter = matchList.begin(); iter != matchList.end(); ++iter) {
+            for (auto iter = match_list.begin(); iter != match_list.end(); ++iter) {
                 const MatchInfoEx & matchInfo = *iter;
                 std::size_t match_begin = matchInfo.begin;
                 std::size_t match_end   = matchInfo.end;
@@ -327,7 +333,8 @@ int StringReplace(const std::string & name,
     std::string output_file = splicing_file_name(in_output_file, name);
 
     std::vector<std::pair<std::string, int>> dict_list;
-    preprocessing_dict_file(dict_kv, dict_list);
+    std::vector<int> length_list;
+    preprocessing_dict_file(dict_kv, dict_list, length_list);
 
     static const std::size_t kPageSize = 4 * 1024;
     static const std::size_t kReadChunkSize = 64 * 1024;
@@ -417,7 +424,7 @@ int StringReplace(const std::string & name,
                 //input_chunk[input_chunk_last] = '\0';
                 std::size_t output_offset = writeBufSize;
                 std::size_t outputBytes = replaceInputChunkTextEx<AcTrieT>(
-                                                ac_trie, dict_list,
+                                                ac_trie, dict_list, length_list,
                                                 input_chunk, input_chunk_last,
                                                 output_chunk, output_offset);
                 //input_chunk[input_chunk_last] = saveChar;
@@ -449,7 +456,7 @@ int StringReplace(const std::string & name,
                     input_chunk[input_chunk_last] = '\0';
                     std::size_t output_offset = writeBufSize;
                     std::size_t outputBytes = replaceInputChunkTextEx<AcTrieT>(
-                                                    ac_trie, dict_list,
+                                                    ac_trie, dict_list, length_list,
                                                     input_chunk, input_chunk_last,
                                                     output_chunk, output_offset);
                     input_chunk[input_chunk_last] = saveChar;
