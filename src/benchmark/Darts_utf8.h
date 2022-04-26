@@ -783,7 +783,7 @@ public:
                 assert(this->is_valid_child(child));
                 State & child_state = this->states_[child];
                 //if (likely((child_state.check == cur) && this->is_allocated_child(child))) {
-                if (likely(child_state.check == cur)) {
+                if (unlikely(child_state.check == cur)) {
                     cur = child;
                 } else {
                     goto MatchNextLabel;
@@ -822,7 +822,7 @@ public:
                     // Matched
                     matchInfo.end        = (std::uint32_t)(text - text_first);
                     matchInfo.pattern_id = node_state.pattern_id;
-                    if (node != cur) {
+                    if (likely(node != cur)) {
                         // If current full prefix is matched, judge the continous suffixs has some chars is matched?
                         // If it's have any chars is matched, it would be the longest matched suffix.
                         MatchInfo matchInfo1;
@@ -833,7 +833,7 @@ public:
                             return true;
                         }
                     }
-                    if (node_state.has_child != 0) {
+                    if (unlikely(node_state.has_child != 0)) {
                         // If a sub suffix exists, match the continous longest suffixs.
                         MatchInfo matchInfo2;
                         bool matched2 = this->match_tail(node, text, text_last, matchInfo2);
@@ -893,7 +893,7 @@ MatchNextLabel:
                 ident_t child = base + label;
                 assert(this->is_valid_child(child));
                 State & child_state = this->states_[child];
-                if (likely(child_state.check == cur)) {
+                if (unlikely(child_state.check == cur)) {
                     cur = child;
                 } else {
                     goto MatchNextLabel;
@@ -932,7 +932,7 @@ MatchNextLabel:
                     MatchInfoEx matchInfo;
                     matchInfo.end        = (std::uint32_t)(text - text_first);
                     matchInfo.pattern_id = node_state.pattern_id;
-                    if (node != cur) {
+                    if (likely(node != cur)) {
                         // If current full prefix is matched, judge the continous suffixs has some chars is matched?
                         // If it's have any chars is matched, it would be the longest matched suffix.
                         MatchInfo matchInfo1;
@@ -948,7 +948,7 @@ MatchNextLabel:
                             break;
                         }
                     }
-                    if (node_state.has_child != 0) {
+                    if (unlikely(node_state.has_child != 0)) {
                         // If a sub suffix exists, match the continous longest suffixs.
                         MatchInfo matchInfo2;
                         bool matched2 = this->match_tail(node, text, text_last, matchInfo2);
