@@ -192,3 +192,14 @@ _ReSharper*/
 /Device-Coverage/
 /Device-Profile/
 /Device-Release/
+
+# Ignore text files under /data folder
+/data/video_title.txt
+
+# Ignore source & text files under projects folder
+/projects/**/*.h
+/projects/**/*.hpp
+/projects/**/*.cpp
+/projects/**/*.cc
+/projects/**/*.cxx
+/projects/**/*.txt
