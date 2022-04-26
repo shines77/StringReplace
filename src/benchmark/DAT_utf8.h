@@ -662,14 +662,14 @@ RestartMatching:
             State & child_state = this->states_[child];
             if (likely(child_state.check != cur)) {
                 // Mismatch, restart matching status
-                if (likely(cur != root)) {
+                if (unlikely(cur != root)) {
                     cur = root;
                     goto RestartMatching;
                 }
             } else {
                 // Match next word (Label)
                 cur = child;
-                if (likely(child_state.is_final != 0)) {
+                if (unlikely(child_state.is_final != 0)) {
                     // Matched
                     matchInfo.end        = (std::uint32_t)(text - text_first);
                     matchInfo.pattern_id = child_state.pattern_id;
@@ -732,14 +732,14 @@ RestartMatching:
             State & child_state = this->states_[child];
             if (likely(child_state.check != cur)) {
                 // Mismatch, restart matching status
-                if (likely(cur != root)) {
+                if (unlikely(cur != root)) {
                     cur = root;
                     goto RestartMatching;
                 }
             } else {
                 // Match next word (Label)
                 cur = child;
-                if (likely(child_state.is_final != 0)) {
+                if (unlikely(child_state.is_final != 0)) {
                     // Matched
                     MatchInfoEx matchInfo;
                     matchInfo.end        = (std::uint32_t)(text - text_first);
@@ -805,14 +805,14 @@ RestartMatching:
             State & child_state = this->states_[child];
             if (likely(child_state.check != cur)) {
                 // Mismatch, restart matching status and recheck first word (label).
-                if (likely(cur != root)) {
+                if (unlikely(cur != root)) {
                     cur = root;
                     goto RestartMatching;
                 }
             } else {
                 // Match next word (Label)
                 cur = child;
-                if (likely(child_state.is_final != 0)) {
+                if (unlikely(child_state.is_final != 0)) {
                     // Matched
                     MatchInfoEx matchInfo;
                     matchInfo.end        = (std::uint32_t)(text - text_first);
