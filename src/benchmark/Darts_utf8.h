@@ -785,13 +785,6 @@ public:
             if (unlikely(child_state.check == cur)) {
                 cur = child;
                 text += skip;
-                if (child_state.is_final != 0) {
-                    matchInfo.end        = (std::uint32_t)(text - text_first);
-                    matchInfo.pattern_id = child_state.pattern_id;
-                    matched = true;
-                }
-                if (child_state.has_child == 0)
-                    break;
             } else {
                 if ((cur != root) && (cur_state.is_final != 0)) {
                     matchInfo.end        = (std::uint32_t)(text - text_first);
