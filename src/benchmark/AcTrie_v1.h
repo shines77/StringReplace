@@ -133,6 +133,10 @@ public:
         return kRootIdent;
     }
 
+    bool has_overflow_labels() const {
+        return false;
+    }
+
     void clear() {
         this->states_.clear();
         this->states_.reserve(2);

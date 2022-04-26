@@ -214,6 +214,10 @@ public:
         return kRootIdent;
     }
 
+    bool has_overflow_labels() const {
+        return false;
+    }
+
     void clear() {
         this->acTrie_.clear();
 
