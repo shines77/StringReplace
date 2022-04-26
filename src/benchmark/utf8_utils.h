@@ -73,63 +73,65 @@ std::size_t unicode_encode_len(std::uint32_t unicode)
 }
 
 static inline
-std::uint32_t utf8_decode(const char * utf8, std::size_t & skip)
+std::uint32_t utf8_decode(const char * utf8_input, std::size_t & skip)
 {
     std::uint32_t unicode;
-    const std::uint8_t * text = (const std::uint8_t *)utf8;
-    std::uint32_t type = (std::uint32_t)(*text & 0xF0);
+    const std::uint8_t * utf8 = (const std::uint8_t *)utf8_input;
+    std::uint32_t type = (std::uint32_t)(*utf8 & 0xF0);
     if (type == 0x000000E0u) {
         // 16 bits, 3 bytes: 1110xxxx 10xxxxxx 10xxxxxx
-        unicode = ((*text & 0x0F) << 12u) | ((*(text + 1) & 0x3F) << 6u) | (*(text + 2) & 0x3F);
+        unicode = ((std::uint32_t)(*(utf8 + 0) & 0x0F) << 12u) | ((std::uint32_t)(*(utf8 + 1) & 0x3F) << 6u) |
+                   (std::uint32_t)(*(utf8 + 2) & 0x3F);
         skip = 3;
     } else if (type < 0x00000080u) {
         // 8bits,   1 byte:  0xxxxxxx
-        unicode = *text;
+        unicode = (std::uint32_t)*utf8;
         skip = 1;
     } else if (type < 0x000000E0u) {
         // 11 bits, 2 bytes: 110xxxxx 10xxxxxx
-        unicode = ((*text & 0x1F) << 6u) | (*(text + 1) & 0x3F);
+        unicode = ((std::uint32_t)(*(utf8 + 0) & 0x1F) << 6u) | (std::uint32_t)(*(utf8 + 1) & 0x3F);
         skip = 2;
     } else {
         // 21 bits, 4 bytes: 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
-        unicode = ((*text & 0x07) << 18u) | ((*(text + 1) & 0x3F) << 12u) | ((*(text + 2) & 0x3F) << 6u) | (*(text + 3) & 0x3F);
+        unicode = ((std::uint32_t)(*(utf8 + 0) & 0x07) << 18u) | ((std::uint32_t)(*(utf8 + 1) & 0x3F) << 12u) |
+                  ((std::uint32_t)(*(utf8 + 2) & 0x3F) << 6u ) |  (std::uint32_t)(*(utf8 + 3) & 0x3F);
         skip = 4;
     }
     return unicode;
 }
 
 static inline
-std::size_t utf8_encode(std::uint32_t unicode, char * text)
+std::size_t utf8_encode(std::uint32_t unicode, char * utf8_output)
 {
-    uint8_t * output = (uint8_t *)text;
+    uint8_t * utf8 = (uint8_t *)utf8_output;
     if (unicode >= 0x00000800u) {
         if (unicode <= 0x0000FFFFu) {
             // 0x00000800 - 0x0000FFFF
             // 16 bits, 3 bytes: 1110xxxx 10xxxxxx 10xxxxxx
             // Using 0x0000FFFFu instead of 0x00003F00u may be optimized
-            *(output + 0) = (uint8_t)(((unicode & 0x0000FFFFu) >> 12u) | 0xE0);
-            *(output + 1) = (uint8_t)(((unicode & 0x00000FC0u) >> 6u ) | 0x80);
-            *(output + 2) = (uint8_t)(((unicode & 0x0000003Fu) >> 0u ) | 0x80);
+            *(utf8 + 0) = (uint8_t)(((unicode & 0x0000FFFFu) >> 12u) | 0xE0);
+            *(utf8 + 1) = (uint8_t)(((unicode & 0x00000FC0u) >> 6u ) | 0x80);
+            *(utf8 + 2) = (uint8_t)(((unicode & 0x0000003Fu) >> 0u ) | 0x80);
             return std::size_t(3);
         } else {
             // 0x00010000 - 0x001FFFFF (in fact 0x0010FFFF)
             // 21 bits, 4 bytes: 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
-            *(output + 0) = (uint8_t)(((unicode & 0x001C0000u) >> 18u) | 0xF0);
-            *(output + 1) = (uint8_t)(((unicode & 0x00003F00u) >> 12u) | 0x80);
-            *(output + 2) = (uint8_t)(((unicode & 0x00000FC0u) >> 6u ) | 0x80);
-            *(output + 3) = (uint8_t)(((unicode & 0x0000003Fu) >> 0u ) | 0x80);
+            *(utf8 + 0) = (uint8_t)(((unicode & 0x001C0000u) >> 18u) | 0xF0);
+            *(utf8 + 1) = (uint8_t)(((unicode & 0x00003F00u) >> 12u) | 0x80);
+            *(utf8 + 2) = (uint8_t)(((unicode & 0x00000FC0u) >> 6u ) | 0x80);
+            *(utf8 + 3) = (uint8_t)(((unicode & 0x0000003Fu) >> 0u ) | 0x80);
             return std::size_t(4);
         }
     } else if (unicode < 0x00000080u) {
         // 0x00000000 - 0x0000007F
         // 8bits,   1 byte:  0xxxxxxx
-        *(output + 0) = (uint8_t)(unicode & 0x0000007Fu);
+        *(utf8 + 0) = (uint8_t)(unicode & 0x0000007Fu);
         return std::size_t(1);
     } else {
         // 0x00000080 - 0x000007FF
         // 11 bits, 2 bytes: 110xxxxx 10xxxxxx
-        *(output + 0) = (uint8_t)(((unicode & 0x000007C0u) >> 6u ) | 0xC0);
-        *(output + 1) = (uint8_t)(((unicode & 0x0000003Fu) >> 0u ) | 0x80);
+        *(utf8 + 0) = (uint8_t)(((unicode & 0x000007C0u) >> 6u ) | 0xC0);
+        *(utf8 + 1) = (uint8_t)(((unicode & 0x0000003Fu) >> 0u ) | 0x80);
         return std::size_t(2);
     }
 }
