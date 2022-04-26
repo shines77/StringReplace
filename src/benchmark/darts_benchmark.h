@@ -45,7 +45,7 @@
 
 namespace darts_bench {
 
-static const bool kShowKeyValueList = false;
+static const bool kDisplayOutput = false;
 
 void preprocessing_dict_file(const std::string & dict_kv,
                              std::vector<std::pair<std::string, int>> & dict_list)
@@ -91,7 +91,7 @@ void preprocessing_dict_file(const std::string & dict_kv,
             break;
     } while (1);
 
-    if (kShowKeyValueList) {
+    if (kDisplayOutput) {
         int li_index = 0;
         for (auto iter = dict_list.begin(); iter != dict_list.end(); ++iter) {
             std::string key_ansi;
@@ -101,7 +101,7 @@ void preprocessing_dict_file(const std::string & dict_kv,
         }
     }
 
-    if (kShowKeyValueList) {
+    if (kDisplayOutput) {
         printf("\n");
     }
 }
@@ -223,7 +223,6 @@ std::size_t replaceInputChunkTextEx(AcTrieT & acTrie,
     uint8_t * line_first = (uint8_t *)input_chunk.c_str();
     uint8_t * line_last;
 
-    typedef typename AcTrieT::MatchInfo MatchInfo;
     typedef typename AcTrieT::MatchInfoEx MatchInfoEx;
 
     std::vector<MatchInfoEx> matchList;
@@ -346,7 +345,7 @@ int StringReplace(const std::string & name,
         index++;
     };
 
-    bool has_overflow_labels = ac_trie.build();
+    ac_trie.build();
 
     sw.stop();
 
@@ -363,6 +362,8 @@ int StringReplace(const std::string & name,
     std::size_t globalWriteBytes = 0;
     std::size_t globalWriteCount = 0;
 #endif
+
+    bool has_overflow_labels = ac_trie.has_overflow_labels();
 
     std::ifstream ifs;
     ifs.open(input_file, std::ios::in | std::ios::binary);

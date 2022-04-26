@@ -44,7 +44,7 @@
 
 namespace ac_bench {
 
-static const bool kShowKeyValueList = false;
+static const bool kDisplayOutput = false;
 
 void v1_AcTire_test()
 {
@@ -120,7 +120,7 @@ void preprocessing_dict_file(const std::string & dict_kv,
             break;
     } while (1);
 
-    if (kShowKeyValueList) {
+    if (kDisplayOutput) {
         int li_index = 0;
         for (auto iter = dict_list.begin(); iter != dict_list.end(); ++iter) {
             std::string key_ansi;
@@ -130,7 +130,7 @@ void preprocessing_dict_file(const std::string & dict_kv,
         }
     }
 
-    if (kShowKeyValueList) {
+    if (kDisplayOutput) {
         printf("\n");
     }
 }

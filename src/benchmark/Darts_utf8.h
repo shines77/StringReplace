@@ -310,14 +310,14 @@ public:
         return kInvalidIdent;
     }
 
-    bool build() {
+    inline void build() {
         if (!this->has_overflow_labels())
-            return this->build_no_overflow();
+            this->build_no_overflow();
         else
-            return this->build_overflow();
+            this->build_overflow();
     }
 
-    bool build_no_overflow() {
+    void build_no_overflow() {
         std::vector<ident_t> ac_queue;
         std::vector<ident_t> queue;
         ac_queue.reserve(this->acTrie_.size());
@@ -511,11 +511,9 @@ public:
                 assert(cur_state->base == 0);
             }
         }
-
-        return has_overflow_labels;
     }
 
-    bool build_overflow() {
+    void build_overflow() {
         std::vector<ident_t> ac_queue;
         std::vector<ident_t> queue;
         ac_queue.reserve(this->acTrie_.size());
@@ -532,8 +530,6 @@ public:
 
         ident_t root = this->root();
         queue.push_back(root);
-
-        bool has_overflow_labels = false;
 
         size_type head = 0;
         size_type first_children = 0;
@@ -667,7 +663,6 @@ public:
                         std::uint64_t ident_and_label = ((std::uint64_t)cur << 32u) | label;
                         assert(this->overflow_labels_.count(ident_and_label) == 0);
                         this->overflow_labels_.insert(std::make_pair(ident_and_label, child));
-                        has_overflow_labels = true;
                     }
 
                     State & child_state = this->states_[child];
@@ -720,8 +715,6 @@ public:
                 assert(cur_state->base == 0);
             }
         }
-
-        return has_overflow_labels;
     }
 
     inline
