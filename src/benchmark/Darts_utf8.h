@@ -762,6 +762,61 @@ public:
         return this->match_tail(root, (const uchar_type *)first, (const uchar_type *)last, matchInfo);
     }
 
+    inline
+    bool match_tail_fast(ident_t root, const uchar_type * first,
+                         const uchar_type * last, MatchInfo & matchInfo) {
+        uchar_type * text_first = (uchar_type *)first;
+        uchar_type * text_last = (uchar_type *)last;
+        uchar_type * text = text_first;
+        assert(text_first <= text_last);
+
+        bool matched = false;
+
+        ident_t cur = root;
+        while (text < text_last) {
+            std::size_t skip;
+            std::uint32_t label = utf8_decode((const char *)text, skip);
+            assert(this->is_valid_child(cur));
+            State & cur_state = this->states_[cur];
+            ident_t base = cur_state.base;
+            ident_t child = base + label;
+            assert(this->is_valid_child(child));
+            State & child_state = this->states_[child];
+            if (unlikely(child_state.check == cur)) {
+                cur = child;
+                text += skip;
+                if (child_state.is_final != 0) {
+                    matchInfo.end        = (std::uint32_t)(text - text_first);
+                    matchInfo.pattern_id = child_state.pattern_id;
+                    matched = true;
+                }
+                if (child_state.has_child == 0)
+                    break;
+            } else {
+                if ((cur != root) && (cur_state.is_final != 0)) {
+                    matchInfo.end        = (std::uint32_t)(text - text_first);
+                    matchInfo.pattern_id = cur_state.pattern_id;
+                    return true;
+                }
+                break;
+            }
+        }
+
+        return matched;
+    }
+
+    inline
+    bool match_tail_fast(ident_t root, const char_type * first,
+                         const char_type * last, MatchInfo & matchInfo) {
+        return this->match_tail_fast(root, (const uchar_type *)first, (const uchar_type *)last, matchInfo);
+    }
+
+    inline
+    bool match_tail_fast(ident_t root, const schar_type * first,
+                         const schar_type * last, MatchInfo & matchInfo) {
+        return this->match_tail_fast(root, (const uchar_type *)first, (const uchar_type *)last, matchInfo);
+    }
+
     //
     // See: https://zhuanlan.zhihu.com/p/80325757 (The picture of the article is good, and the code is concise and clear.)
     // See: https://juejin.cn/post/6844903635130777614 (The DFA diagram drawing is nice.)
@@ -833,7 +888,7 @@ public:
                         // If current full prefix is matched, judge the continous suffixs has some chars is matched?
                         // If it's have any chars is matched, it would be the longest matched suffix.
                         MatchInfo matchInfo1;
-                        bool matched1 = this->match_tail(cur, text, text_last, matchInfo1);
+                        bool matched1 = this->match_tail_fast(cur, text, text_last, matchInfo1);
                         if (matched1) {
                             matchInfo.end       += matchInfo1.end;
                             matchInfo.pattern_id = matchInfo1.pattern_id;
@@ -843,7 +898,7 @@ public:
                     if (node_state.has_child != 0) {
                         // If a sub suffix exists, match the continous longest suffixs.
                         MatchInfo matchInfo2;
-                        bool matched2 = this->match_tail(node, text, text_last, matchInfo2);
+                        bool matched2 = this->match_tail_fast(node, text, text_last, matchInfo2);
                         if (matched2) {
                             matchInfo.end       += matchInfo2.end;
                             matchInfo.pattern_id = matchInfo2.pattern_id;
