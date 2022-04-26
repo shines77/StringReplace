@@ -1002,14 +1002,14 @@ MatchNextLabel:
             std::size_t skip;
             std::uint32_t label = utf8_decode((const char *)text, skip);
             text += skip;
-            if (unlikely(cur == root)) {
+            if (likely(cur == root)) {
                 assert(this->is_valid_id(cur));
                 State & cur_state = this->states_[cur];
                 ident_t base = cur_state.base;
                 ident_t child = base + label;
                 assert(this->is_valid_child(child));
                 State & child_state = this->states_[child];
-                if (unlikely(child_state.check == cur)) {
+                if (likely(child_state.check == cur)) {
                     cur = child;
                 } else {
                     goto MatchNextLabel;
