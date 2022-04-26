@@ -426,6 +426,180 @@ int StringReplace(const std::string & name,
                 //char saveChar = input_chunk[input_chunk_last];
                 //input_chunk[input_chunk_last] = '\0';
                 std::size_t output_offset = writeBufSize;
+                std::size_t outputBytes = replaceInputChunkText<AcTrieT>(
+                                                ac_trie, dict_list,
+                                                input_chunk, input_chunk_last,
+                                                output_chunk, output_offset);
+                //input_chunk[input_chunk_last] = saveChar;
+                writeBufSize += outputBytes;
+                if (writeBufSize >= kWriteBlockSize) {
+                    writeOutputChunk(ofs, output_chunk, kWriteBlockSize);
+                    std::size_t remainBytes = writeBufSize - kWriteBlockSize;
+                    // Move the remaining bytes to head
+                    std::copy_n(&output_chunk[kWriteBlockSize], remainBytes, &output_chunk[0]);
+                    writeBufSize -= kWriteBlockSize;
+#if USE_READ_WRITE_STATISTICS
+                    globalWriteBytes += kWriteBlockSize;
+                    globalWriteCount++;
+#endif
+                }
+                assert(actualInputChunkBytes >= input_chunk_last);
+                std::size_t tailingBytes = actualInputChunkBytes - input_chunk_last;
+                if (tailingBytes > 0) {
+                    // Move the tailing bytes to head
+                    std::copy_n(&input_chunk[input_chunk_last], tailingBytes, &input_chunk[0]);
+                }
+                input_offset = tailingBytes;
+
+                inputTotalSize -= totalReadBytes;
+            } else {
+                if (input_offset > 0) {
+                    std::size_t input_chunk_last = input_offset;
+                    char saveChar = input_chunk[input_chunk_last];
+                    input_chunk[input_chunk_last] = '\0';
+                    std::size_t output_offset = writeBufSize;
+                    std::size_t outputBytes = replaceInputChunkText<AcTrieT>(
+                                                    ac_trie, dict_list,
+                                                    input_chunk, input_chunk_last,
+                                                    output_chunk, output_offset);
+                    input_chunk[input_chunk_last] = saveChar;
+                    writeBufSize += outputBytes;
+                }
+                if (writeBufSize > 0) {
+                    writeOutputChunk(ofs, output_chunk, writeBufSize);
+#if USE_READ_WRITE_STATISTICS
+                    globalWriteBytes += writeBufSize;
+                    globalWriteCount++;
+#endif
+                }
+                break;
+            }
+        } while (1);
+
+        assert(inputTotalSize == 0);
+
+        ofs.close();
+        ifs.close();
+
+#if USE_READ_WRITE_STATISTICS
+        printf("globalReadCount = %" PRIu64 ", globalWriteCount = %" PRIu64 ".\n",
+                globalReadCount, globalWriteCount);
+        printf("globalReadBytes = %" PRIu64 ", globalWriteBytes = %" PRIu64 ".\n",
+                globalReadBytes, globalWriteBytes);
+        printf("\n");
+#endif
+        return 0;
+    }
+
+    return -1;
+}
+
+template <typename AcTrieT>
+int StringReplaceEx(const std::string & name,
+                    const std::string & dict_file,
+                    const std::string & input_file,
+                    const std::string & in_output_file)
+{
+    std::string dict_kv;
+    std::size_t dict_filesize = read_dict_file(dict_file, dict_kv);
+    if (dict_filesize == 0) {
+        std::cout << "dict_file [ " << dict_file << " ] read failed." << std::endl;
+        return -1;
+    }
+
+    std::string output_file = splicing_file_name(in_output_file, name);
+
+    std::vector<std::pair<std::string, int>> dict_list;
+    std::vector<int> length_list;
+
+    preprocessing_dict_file(dict_kv, dict_list, length_list);
+
+    static const std::size_t kPageSize = 4 * 1024;
+    static const std::size_t kReadChunkSize = 64 * 1024;
+    static const std::size_t kWriteBlockSize = 128 * 1024;
+
+    test::StopWatch sw;
+
+    sw.start();
+
+    AcTrieT ac_trie;
+    std::uint32_t index = 0;
+    for (auto iter = dict_list.begin(); iter != dict_list.end(); ++iter) {
+        const std::string & key = iter->first;
+        ac_trie.insert(key, index);
+        index++;
+    }
+
+    ac_trie.build();
+
+    sw.stop();
+
+    double elapsedTime = sw.getMillisec();
+
+    ac_trie.clear_ac_trie();
+    printf("darts_trie.max_state_id() = %u\n", (uint32_t)ac_trie.max_state_id());
+    printf("darts_trie build elapsed time: %0.2f ms\n\n", elapsedTime);
+
+#if USE_READ_WRITE_STATISTICS
+    std::size_t globalReadBytes = 0;
+    std::size_t globalReadCount = 0;
+
+    std::size_t globalWriteBytes = 0;
+    std::size_t globalWriteCount = 0;
+#endif
+
+    bool has_overflow_labels = ac_trie.has_overflow_labels();
+
+    std::ifstream ifs;
+    ifs.open(input_file, std::ios::in | std::ios::binary);
+    if (ifs.good()) {
+        ifs.seekg(0, std::ios::end);
+        std::size_t inputTotalSize = (std::size_t)ifs.tellg();
+        ifs.seekg(0, std::ios::beg);
+        std::streampos read_pos = ifs.tellg();
+
+        std::ofstream ofs;
+        ofs.open(output_file, std::ios::out | std::ios::binary);
+        if (!ofs.good()) {
+            ifs.close();
+            return -1;
+        }
+        ofs.seekp(0, std::ios::beg);
+
+        std::string input_chunk;
+        std::string output_chunk;
+
+        input_chunk.resize(kReadChunkSize + kPageSize);
+        output_chunk.resize(kWriteBlockSize + kReadChunkSize * 2 + kPageSize);
+
+        std::size_t input_offset = 0;
+        std::size_t writeBufSize = 0;
+
+        do {
+            std::size_t totalReadBytes = readInputChunk(ifs, input_chunk, input_offset,
+                                                        kReadChunkSize);
+            if (totalReadBytes > 0) {
+#if USE_READ_WRITE_STATISTICS
+                globalReadBytes += totalReadBytes;
+                globalReadCount++;
+#endif
+                std::size_t input_chunk_last;
+                std::size_t actualInputChunkBytes = input_offset + totalReadBytes;
+#if defined(_MSC_VER)
+                std::size_t lastNewLinePos = StrUtils::rfind(input_chunk, '\n', actualInputChunkBytes);
+                if (lastNewLinePos == std::string::npos)
+                    input_chunk_last = actualInputChunkBytes;
+                else
+                    input_chunk_last = lastNewLinePos + 1;
+#else
+                size_t length = (size_t)actualInputChunkBytes;
+                const char * last_newline = (const char *)memrchr(input_chunk.c_str(), '\n', length);
+                input_chunk_last = (last_newline == nullptr) ? actualInputChunkBytes
+                                 : (last_newline - input_chunk.c_str() + 1);
+#endif
+                //char saveChar = input_chunk[input_chunk_last];
+                //input_chunk[input_chunk_last] = '\0';
+                std::size_t output_offset = writeBufSize;
                 std::size_t outputBytes = replaceInputChunkTextEx<AcTrieT>(
                                                 ac_trie, dict_list, length_list,
                                                 input_chunk, input_chunk_last,

@@ -706,6 +706,9 @@ RestartMatching:
             return;
         }
 
+        match_list.clear();
+        assert(onHit_callback);
+
         uchar_type * text_first = (uchar_type *)first;
         uchar_type * text_last = (uchar_type *)last;
         uchar_type * text = text_first;
@@ -713,9 +716,6 @@ RestartMatching:
 
         ident_t root = this->root();
         ident_t cur = root;
-
-        match_list.clear();
-        assert(onHit_callback);
 
         while (text < text_last) {
             std::size_t skip;
@@ -780,12 +780,12 @@ RestartMatching:
     void match_one(const uchar_type * first, const uchar_type * last,
                    std::vector<MatchInfoEx> & match_list,
                    const std::vector<int> & length_list) {
+        match_list.clear();
+
         uchar_type * text_first = (uchar_type *)first;
         uchar_type * text_last = (uchar_type *)last;
         uchar_type * text = text_first;
         assert(text_first <= text_last);
-
-        match_list.clear();
 
         ident_t root = this->root();
         ident_t cur = root;

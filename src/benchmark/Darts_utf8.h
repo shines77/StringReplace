@@ -783,7 +783,7 @@ public:
                 assert(this->is_valid_child(child));
                 State & child_state = this->states_[child];
                 //if (likely((child_state.check == cur) && this->is_allocated_child(child))) {
-                if (unlikely(child_state.check == cur)) {
+                if (likely(child_state.check == cur)) {
                     cur = child;
                 } else {
                     goto MatchNextLabel;
@@ -822,7 +822,7 @@ public:
                     // Matched
                     matchInfo.end        = (std::uint32_t)(text - text_first);
                     matchInfo.pattern_id = node_state.pattern_id;
-                    if (likely(node != cur)) {
+                    if (node != cur) {
                         // If current full prefix is matched, judge the continous suffixs has some chars is matched?
                         // If it's have any chars is matched, it would be the longest matched suffix.
                         MatchInfo matchInfo1;
@@ -833,7 +833,7 @@ public:
                             return true;
                         }
                     }
-                    if (unlikely(node_state.has_child != 0)) {
+                    if (node_state.has_child != 0) {
                         // If a sub suffix exists, match the continous longest suffixs.
                         MatchInfo matchInfo2;
                         bool matched2 = this->match_tail(node, text, text_last, matchInfo2);
@@ -870,6 +870,9 @@ MatchNextLabel:
             return;
         }
 
+        match_list.clear();
+        assert(onHit_callback);
+
         uchar_type * text_first = (uchar_type *)first;
         uchar_type * text_last = (uchar_type *)last;
         uchar_type * text = text_first;
@@ -877,9 +880,6 @@ MatchNextLabel:
 
         ident_t root = this->root();
         ident_t cur = root;
-
-        match_list.clear();
-        assert(onHit_callback);
 
         while (text < text_last) {
             ident_t node;
@@ -987,12 +987,12 @@ MatchNextLabel:
     void match_one(const uchar_type * first, const uchar_type * last,
                    std::vector<MatchInfoEx> & match_list,
                    const std::vector<int> & length_list) {
+        match_list.clear();
+
         uchar_type * text_first = (uchar_type *)first;
         uchar_type * text_last = (uchar_type *)last;
         uchar_type * text = text_first;
         assert(text_first <= text_last);
-
-        match_list.clear();
 
         ident_t root = this->root();
         ident_t cur = root;

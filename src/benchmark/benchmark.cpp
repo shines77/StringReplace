@@ -187,7 +187,7 @@ void benchmark(const std::string & dict_file,
 
 #if 1
     sw.start();
-    darts_bench::StringReplace<utf8::DAT<char>>("utf8_dat", dict_file, input_file, output_file);
+    darts_bench::StringReplaceEx<utf8::DAT<char>>("utf8_dat", dict_file, input_file, output_file);
     sw.stop();
 
     elapsedTime = sw.getMillisec();
