@@ -232,8 +232,10 @@ std::size_t replaceInputChunkTextEx(AcTrieT & acTrie,
     typedef typename AcTrieT::MatchInfoEx MatchInfoEx;
 
     std::vector<MatchInfoEx> match_list;
+#if 0
     static typename AcTrieT::on_hit_callback onHit_callback =
         std::bind(&getPatternLength, std::placeholders::_1, dict_list);
+#endif
 
     while (line_first < input_end) {
 #if 0
@@ -350,7 +352,7 @@ int StringReplace(const std::string & name,
         const std::string & key = iter->first;
         ac_trie.insert(key, index);
         index++;
-    };
+    }
 
     ac_trie.build();
 
@@ -408,7 +410,6 @@ int StringReplace(const std::string & name,
                 std::size_t input_chunk_last;
                 std::size_t actualInputChunkBytes = input_offset + totalReadBytes;
 #if defined(_MSC_VER)
-                //std::size_t lastNewLinePos = input_chunk.find_last_of('\n', actualInputChunkBytes - 1);
                 std::size_t lastNewLinePos = StrUtils::rfind(input_chunk, '\n', actualInputChunkBytes);
                 if (lastNewLinePos == std::string::npos)
                     input_chunk_last = actualInputChunkBytes;

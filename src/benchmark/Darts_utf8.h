@@ -1067,8 +1067,8 @@ MatchNextLabel:
                         if (matched1) {
                             matchInfo.end       += matchInfo1.end;
                             matchInfo.pattern_id = matchInfo1.pattern_id;
-                            size_type length = length_list[matchInfo1.pattern_id];
-                            matchInfo.begin = matchInfo.end - (std::uint32_t)length;
+                            std::uint32_t length = length_list[matchInfo1.pattern_id];
+                            matchInfo.begin = matchInfo.end - length;
                             match_list.push_back(matchInfo);
                             cur = root;
                             text += matchInfo1.end;
@@ -1085,8 +1085,8 @@ MatchNextLabel:
                             text += matchInfo2.end;
                         }
                     }
-                    size_type length = length_list[matchInfo.pattern_id];
-                    matchInfo.begin = matchInfo.end - (std::uint32_t)length;
+                    std::uint32_t length = length_list[matchInfo.pattern_id];
+                    matchInfo.begin = matchInfo.end - length;
                     match_list.push_back(matchInfo);
                     cur = root;
                     break;
