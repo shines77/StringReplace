@@ -272,7 +272,7 @@ struct char_trait {
 			!std::is_same<T, bool>::value),
         "detail::char_trait<T> require that T shall be a (possibly "
 		"cv-qualified) integral type or enumeration but not a bool type.");
-    
+
     typedef typename std::remove_reference<
                 typename std::remove_pointer<
                     typename std::remove_extent<
@@ -438,7 +438,7 @@ std::string splicing_file_name(const std::string & filename, const std::string &
             ret_file.push_back(filename[i]);
         // Copy _CCCC
         ret_file.push_back('_');
-        for (i = 0; i < name.size(); i++) 
+        for (i = 0; i < name.size(); i++)
             ret_file.push_back(name[i]);
         // Copy .txt
         for (i = dot_pos; i < filename.size(); i++)
@@ -489,7 +489,7 @@ std::size_t find_kv_separator(const std::string & dict_kv,
         if (*kv != separator)
             kv++;
         else
-            return pos;       
+            return pos;
     }
     return std::string::npos;
 }
